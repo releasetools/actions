@@ -1,0 +1,31 @@
+{
+  "name": "@releasetools/actions",
+  "version": "0.0.1",
+  "private": true,
+  "description": "GitHub Actions for release pipelines: signed-push and friends",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/releasetools/actions.git"
+  },
+  "scripts": {
+    "build": "ncc build signed-push/src/index.ts -o signed-push/dist --license licenses.txt --minify",
+    "build:all": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vercel/ncc": "^0.38.3",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "overrides": {
+    "undici": "^7.16.0"
+  }
+}

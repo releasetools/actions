@@ -1,0 +1,151 @@
+name: Release
+
+# Dispatch with a version like v0.0.2. The workflow builds each action's
+# dist bundle, dogfoods signed-push to commit the clean published tree
+# to refs/heads/release/<major> (server-signed by the GITHUB_TOKEN's
+# bot identity), then force-moves the exact-version tag and the
+# floating major tag to point at the new commit.
+#
+# Consumers reference releasetools/actions/<action>@v<major> and get
+# a tree with no source, no node_modules, no tests, no CI. Source
+# lives on main.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. v0.0.2). Must look like vMAJOR.MINOR.PATCH.'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version must look like v0.0.2 (got: $VERSION)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Lint, test, build
+        run: |
+          npm run lint
+          npm test
+          npm run build
+
+      - name: Compute major version
+        id: major
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "value=$(printf '%s' "$VERSION" | cut -d. -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Stage clean publish tree
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p stage/signed-push
+          cp LICENSE stage/
+          cp signed-push/action.yml stage/signed-push/
+          cp signed-push/README.md stage/signed-push/
+          cp -r signed-push/dist stage/signed-push/
+          cat > stage/README.md <<EOF
+          # releasetools/actions ${VERSION}
+
+          Published artifact tree. Each subdirectory holds an action.yml,
+          its README, and its bundled dist. Source and tests live on main:
+          https://github.com/releasetools/actions
+          EOF
+
+      # signed-push needs target-branch to exist. Create release/<major>
+      # off main HEAD the first time we publish on this major line.
+      - name: Ensure release branch exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAJOR: ${{ steps.major.outputs.value }}
+        run: |
+          set -euo pipefail
+          BRANCH="release/${MAJOR}"
+          if ! gh api "repos/${GITHUB_REPOSITORY}/branches/${BRANCH}" >/dev/null 2>&1; then
+            MAIN_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/branches/main" --jq .commit.sha)
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f ref="refs/heads/${BRANCH}" -f sha="${MAIN_SHA}" >/dev/null
+            echo "Created ${BRANCH} from main HEAD ${MAIN_SHA}"
+          fi
+
+      # Dogfood: publish via the action we're releasing. The GITHUB_TOKEN
+      # identity is github-actions[bot]; createCommitOnBranch signs the
+      # resulting commit server-side, so the release commit is verified
+      # in the UI without any GPG key on the runner.
+      - name: Publish via signed-push
+        id: publish
+        uses: ./signed-push
+        with:
+          source-dir: stage
+          target-repo: ${{ github.repository }}
+          target-branch: release/${{ steps.major.outputs.value }}
+          headline: "release: ${{ inputs.version }}"
+          body: |
+            Published-By: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          prune: 'true'
+          token: ${{ github.token }}
+
+      # Force-move both tags to the new signed commit. Done in the
+      # workflow (not via signed-push's tag input) because we want
+      # re-runs to be idempotent: a re-released v0.0.1 should always
+      # point at its latest release commit, and v0 always tracks the
+      # latest release of any patch.
+      - name: Tag the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          MAJOR: ${{ steps.major.outputs.value }}
+          NEW_SHA: ${{ steps.publish.outputs.commit-sha }}
+        run: |
+          set -euo pipefail
+          for ref in "tags/${VERSION}" "tags/${MAJOR}"; do
+            if gh api "repos/${GITHUB_REPOSITORY}/git/refs/${ref}" >/dev/null 2>&1; then
+              gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/${ref}" \
+                -f sha="${NEW_SHA}" -F force=true >/dev/null
+            else
+              gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+                -f ref="refs/${ref}" -f sha="${NEW_SHA}" >/dev/null
+            fi
+          done
+
+      - name: Workflow summary
+        env:
+          VERSION: ${{ inputs.version }}
+          NEW_SHA: ${{ steps.publish.outputs.commit-sha }}
+          NEW_URL: ${{ steps.publish.outputs.commit-url }}
+          MAJOR: ${{ steps.major.outputs.value }}
+          SERVER: ${{ github.server_url }}
+          REPO: ${{ github.repository }}
+        run: |
+          {
+            echo "## Released ${VERSION}"
+            echo
+            echo "Signed commit: [\`${NEW_SHA:0:12}\`](${NEW_URL})"
+            echo
+            echo "Tags pointing at this commit:"
+            echo "- [\`${VERSION}\`](${SERVER}/${REPO}/tree/${VERSION})"
+            echo "- [\`${MAJOR}\`](${SERVER}/${REPO}/tree/${MAJOR})"
+          } >> "$GITHUB_STEP_SUMMARY"

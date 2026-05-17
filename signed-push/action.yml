@@ -1,0 +1,50 @@
+name: 'Signed push'
+description: >-
+  Commit a directory tree to a branch on any repo. The action calls
+  GitHub's createCommitOnBranch mutation, which signs the commit
+  server-side using the token you pass in. No GPG key on the runner.
+  Can also tag the new commit.
+author: 'releasetools'
+branding:
+  icon: 'upload-cloud'
+  color: 'blue'
+
+inputs:
+  source-dir:
+    description: 'Directory whose contents get committed to the target. Every file inside becomes an addition. The .git directory is always skipped.'
+    required: true
+  target-repo:
+    description: '"owner/repo" of the destination repository.'
+    required: true
+  target-branch:
+    description: 'Branch on target-repo to commit on.'
+    required: false
+    default: 'main'
+  headline:
+    description: 'Commit message headline (the first line).'
+    required: true
+  body:
+    description: 'Commit message body. If you want RFC-822 trailers, pass them pre-formed; the action does not assemble them.'
+    required: false
+    default: ''
+  prune:
+    description: 'When true (default), the commit deletes any file present on the target branch but absent from source-dir (mirror mode). Set false for upsert mode: additions and updates only, no deletions.'
+    required: false
+    default: 'true'
+  tag:
+    description: 'Optional release tag. When set, the action creates a lightweight refs/tags/<tag> at the new commit. An existing tag with the same name is treated as success so re-runs do not fail.'
+    required: false
+    default: ''
+  token:
+    description: 'Token with contents:write on target-repo. Use a GitHub App installation token if you want the commit verified; a PAT works too but the commit will not show as signed.'
+    required: true
+
+outputs:
+  commit-sha:
+    description: 'SHA of the new commit on target-branch.'
+  commit-url:
+    description: 'URL of the new commit on github.com.'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'

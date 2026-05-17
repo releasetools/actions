@@ -1,0 +1,11 @@
+node_modules/
+*.log
+.DS_Store
+coverage/
+.vitest-cache/
+
+# Built action bundles live on release tags only, not on main. The release
+# workflow synthesizes a clean orphan commit per release containing only
+# action.yml + dist/ per sub-action; main stays source-only.
+*/dist/
+
