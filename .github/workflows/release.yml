@@ -57,6 +57,44 @@ jobs:
         run: |
           echo "value=$(printf '%s' "$VERSION" | cut -d. -f1)" >> "$GITHUB_OUTPUT"
 
+      - name: Build release references
+        id: references
+        env:
+          VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Include VERSION before sorting so re-running an older release still
+          # compares it with its actual semantic predecessor, not the latest tag.
+          mapfile -t versions < <(
+            {
+              git tag --list
+              printf '%s\n' "$VERSION"
+            } |
+              awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { print }' |
+              sort -Vu
+          )
+
+          previous_version=''
+          for candidate in "${versions[@]}"; do
+            if [[ "$candidate" == "$VERSION" ]]; then
+              break
+            fi
+            previous_version="$candidate"
+          done
+
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          printf 'published_by=[workflow run %s](%s)\n' "$GITHUB_RUN_ID" "$run_url" >> "$GITHUB_OUTPUT"
+
+          if [[ -n "$previous_version" ]]; then
+            compare_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${previous_version}...${VERSION}"
+            printf 'release_ref=[%s diff](%s)\n' "$VERSION" "$compare_url" >> "$GITHUB_OUTPUT"
+          else
+            tag_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${VERSION}"
+            printf 'release_ref=[%s](%s)\n' "$VERSION" "$tag_url" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Stage clean publish tree
         env:
           VERSION: ${{ inputs.version }}
@@ -104,7 +142,8 @@ jobs:
           target-branch: release/${{ steps.major.outputs.value }}
           headline: "release: ${{ inputs.version }}"
           body: |
-            Published-By: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Published-By: ${{ steps.references.outputs.published_by }}
+            Release: ${{ steps.references.outputs.release_ref }}
           prune: 'true'
           token: ${{ github.token }}
 

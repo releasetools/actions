@@ -21,7 +21,7 @@ Each action lives in its own subdirectory with an `action.yml` and a bundled `di
     target-repo: my-org/my-cdn-repo
     headline: "publish: v1.2.3"
     body: |
-      Source-Commit: my-org/source@${{ github.sha }}
+      Source-Commit: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
     tag: ${{ github.ref_name }}
     token: ${{ steps.app-token.outputs.token }}
 ```

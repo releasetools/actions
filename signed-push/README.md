@@ -28,9 +28,9 @@ If you also pass a `tag`, the action creates a lightweight tag at the new commit
     target-branch: main
     headline: "publish: v${{ github.ref_name }}"
     body: |
-      Source-Commit: my-org/source-repo@${{ github.sha }}
-      Source-Tag: ${{ github.ref_name }}
-      Published-By: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      Source-Commit: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+      Source-Tag: [${{ github.ref_name }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }})
+      Published-By: [workflow run ${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
     tag: ${{ github.ref_name }}
     token: ${{ steps.app-token.outputs.token }}
 ```
@@ -46,7 +46,7 @@ The commit replaces every file on `main` with what's in `./dist`, then creates `
     target-repo: my-org/homebrew-tap
     headline: "fix: update Darwin checksums for v1.2.3"
     body: |
-      Source-Commit: my-org/source-repo@${{ github.sha }}
+      Source-Commit: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
     prune: false              # leave other files in the tap alone
     token: ${{ steps.app-token.outputs.token }}
 ```
@@ -65,6 +65,10 @@ With `prune: false`, the action only commits additions. Files on the target that
 | `prune` | no | `true` | When true, deletes target files absent from source-dir. When false, additions only. |
 | `tag` | no | `""` | Lightweight tag to create at the new commit. Idempotent when the tag already exists. |
 | `token` | no | — | Token with `contents:write` on target-repo. App installation tokens make the commit Verified. |
+
+The action passes `body` through unchanged. Use a bare URL for an autolink or
+GitHub-flavored Markdown such as `[v1.2.3 diff](https://github.com/my-org/my-repo/compare/v1.2.2...v1.2.3)`
+when a reference needs a descriptive label in the GitHub UI.
 
 ## Outputs
 
