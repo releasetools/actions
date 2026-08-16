@@ -24,7 +24,7 @@ inputs:
     description: 'Commit message headline (the first line).'
     required: true
   body:
-    description: 'Commit message body. If you want RFC-822 trailers, pass them pre-formed; the action does not assemble them.'
+    description: 'Optional custom commit message body. Workflow-Commit and Published-By references are always appended automatically.'
     required: false
     default: ''
   prune:

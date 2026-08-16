@@ -1,9 +1,10 @@
 import * as core from '@actions/core';
-import { getOctokit } from '@actions/github';
+import { context, getOctokit } from '@actions/github';
 import { enumerateSource } from './enumerate-source';
 import { enumerateTarget } from './enumerate-target';
 import { commit } from './commit';
 import { createTag } from './tag';
+import { appendWorkflowMetadata } from './workflow-metadata';
 
 export async function run(): Promise<void> {
   try {
@@ -11,7 +12,7 @@ export async function run(): Promise<void> {
     const targetRepo = core.getInput('target-repo', { required: true });
     const targetBranch = core.getInput('target-branch') || 'main';
     const headline = core.getInput('headline', { required: true });
-    const body = core.getInput('body');
+    const customBody = core.getInput('body');
     const prune = core.getBooleanInput('prune');
     const tag = core.getInput('tag');
     const token = core.getInput('token', { required: true });
@@ -22,6 +23,14 @@ export async function run(): Promise<void> {
     }
     const owner = targetRepo.slice(0, slash);
     const repo = targetRepo.slice(slash + 1);
+
+    const workflowRepo = `${context.repo.owner}/${context.repo.repo}`;
+    const body = appendWorkflowMetadata(customBody, {
+      serverUrl: context.serverUrl,
+      repository: workflowRepo,
+      sha: context.sha,
+      runId: context.runId,
+    });
 
     const octokit = getOctokit(token);
 
