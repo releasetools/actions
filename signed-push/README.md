@@ -1,16 +1,13 @@
 # `signed-push`
 
-Commit a directory tree to a branch on any repo. The commit is signed server-side by the GitHub App whose token you pass in. Optionally creates a lightweight tag at the new commit.
+Publish a directory to a GitHub branch with a server-signed commit. Use it to
+mirror a generated artifact tree, update a few files without touching anything
+else, or apply one or more release tags to the resulting commit.
 
-## What it does
+## Quick start
 
-You point the action at a local directory and a target repo. It walks the directory, sends every file as a base64 addition through GitHub's `createCommitOnBranch` GraphQL mutation, and (with `prune: true`) sends every target file that isn't in your source as a deletion. The mutation runs server-side, so the resulting commit shows as Verified in the GitHub UI without any GPG key on the runner.
-
-If you also pass a `tag`, the action creates a lightweight tag at the new commit. Re-running with a tag that already exists is treated as success.
-
-## Usage
-
-### Full sync (replace branch contents)
+This example replaces the contents of `main`, creates an exact release tag, and
+moves a floating major tag:
 
 ```yaml
 - uses: actions/create-github-app-token@v3
@@ -22,102 +19,185 @@ If you also pass a `tag`, the action creates a lightweight tag at the new commit
     repositories: my-target-repo
 
 - uses: releasetools/actions/signed-push@v0
+  id: publish
   with:
     source-dir: ./dist
     target-repo: my-org/my-target-repo
     target-branch: main
-    headline: "publish: v${{ github.ref_name }}"
+    headline: "publish: v1.2.3"
     body: |
       Source-Tag: <${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}>
-    tag: ${{ github.ref_name }}
+    prune: 'true'
+    tags: |
+      v1.2.3
+      v1
+    force-tags: 'true'
     token: ${{ steps.app-token.outputs.token }}
 ```
 
-The commit replaces every file on `main` with what's in `./dist`, then creates `refs/tags/v1.2.3` at the new commit.
+After the step completes:
 
-### Upsert one file (no deletion of other files)
+- The target branch tree matches `./dist`.
+- The new commit is signed by the identity behind the token.
+- `v1.2.3` and `v1` point at that commit; existing tags move because
+  `force-tags` is enabled.
+- `commit-sha` and `commit-url` are available as step outputs.
+
+## Choose how files are applied
+
+`prune` controls the action's impact on the target branch.
+
+### Mirror the directory
+
+`prune: true` is the default. Every regular file under `source-dir` is added or
+updated, and every target file absent from `source-dir` is deleted.
+
+Use mirror mode for generated branches whose entire contents are owned by the
+workflow. Do not use it for a shared branch unless deleting unrelated files is
+intentional.
+
+### Update only the supplied files
+
+Set `prune: false` to add or update source files without deleting other target
+files:
 
 ```yaml
 - uses: releasetools/actions/signed-push@v0
   with:
-    source-dir: ./Casks       # contains only Casks/myapp.rb
+    source-dir: ./Casks
     target-repo: my-org/homebrew-tap
     headline: "fix: update Darwin checksums for v1.2.3"
-    prune: false              # leave other files in the tap alone
+    prune: 'false'
     token: ${{ steps.app-token.outputs.token }}
 ```
 
-With `prune: false`, the action only commits additions. Files on the target that aren't in your source-dir stay where they are.
+## Input reference
 
-## Inputs
+| Input | Required | Default | Effect |
+|---|---:|---|---|
+| `source-dir` | yes | — | Local directory to publish. Files are mapped relative to this directory. `.git/`, symlinks, and non-regular files are skipped. |
+| `target-repo` | yes | — | Destination in `owner/repo` form. The token must have write access to it. |
+| `target-branch` | no | `main` | Existing branch to update. The action does not create a missing branch. |
+| `headline` | yes | — | First line of the commit message. |
+| `body` | no | `""` | Custom commit body placed before the action-generated workflow footer. |
+| `prune` | no | `true` | Deletes target files missing from `source-dir`. Set to `false` for additions and updates only. |
+| `tags` | no | `""` | One lightweight tag per line. Blank lines and duplicate names are ignored. |
+| `force-tags` | no | `false` | Moves existing requested tags to the resulting commit. Without it, existing tags remain where they are. |
+| `tag` | no | `""` | Singular tag shortcut. Combined with `tags` when both are supplied. |
+| `token` | yes | — | Token with `contents: write` on `target-repo`. A GitHub App token makes the commit Verified. |
 
-| Input | Required | Default | Description |
-|---|---|---|---|
-| `source-dir` | yes | — | Local directory whose contents go into the commit. `.git/` is always skipped. |
-| `target-repo` | yes | — | `owner/repo` of the destination. |
-| `target-branch` | no | `main` | Branch to commit on. |
-| `headline` | yes | — | Commit message headline. |
-| `body` | no | `""` | Optional custom commit message body. Workflow metadata is always appended automatically. |
-| `prune` | no | `true` | When true, deletes target files absent from source-dir. When false, additions only. |
-| `tag` | no | `""` | Lightweight tag to create at the new commit. Idempotent when the tag already exists. |
-| `token` | no | — | Token with `contents:write` on target-repo. App installation tokens make the commit Verified. |
+### `source-dir`
 
-The action always appends these references to every commit body:
+The directory is walked recursively and paths are published relative to its
+root. Only regular files are included. The `.git` directory is always skipped;
+symlinks, sockets, devices, and other special entries are ignored.
+
+The directory must exist. An empty directory is valid, but with `prune: true`
+it means "delete every file from the target branch."
+
+### `body` and generated metadata
+
+The action always identifies the workflow revision and run that produced its
+commit:
 
 ```text
 Workflow-Commit: <https://github.com/my-org/source-repo/commit/abc1234>
 Published-By: <https://github.com/my-org/source-repo/actions/runs/123456>
 ```
 
-They identify the revision GitHub ran and the workflow run that invoked the
-action. When `body` contains custom content, it comes first and is separated
-from the inferred footer by a blank line and `---`. Custom body URLs should also
-be wrapped in angle brackets so GitHub displays them as autolinks.
+Custom `body` content comes first and is separated from this footer:
 
-For `pull_request` workflows, `Workflow-Commit` is normally GitHub's synthetic
-merge commit. The PR's actual head revision is available separately as
+```text
+Changes: <https://github.com/my-org/source-repo/compare/v1.2.2...v1.2.3>
+
+---
+
+Workflow-Commit: <https://github.com/my-org/source-repo/commit/abc1234>
+Published-By: <https://github.com/my-org/source-repo/actions/runs/123456>
+```
+
+For a `pull_request` workflow, `Workflow-Commit` normally identifies GitHub's
+synthetic merge commit. The PR head is available separately as
 `${{ github.event.pull_request.head.sha }}` and its repository as
-`${{ github.event.pull_request.head.repo.full_name }}`. Use both values when
-constructing a head-commit URL because the pull request may originate from a
-fork.
+`${{ github.event.pull_request.head.repo.full_name }}`. Use both when building a
+head-commit URL because the PR may come from a fork.
+
+### `tags`, `tag`, and `force-tags`
+
+Use `tags` for one or more names:
+
+```yaml
+tags: |
+  v1.2.3
+  v1
+  stable
+force-tags: 'true'
+```
+
+The action combines `tags` with the singular `tag` shortcut, trims the values,
+removes duplicates, and processes the remaining names in order. Each operation
+is retried once.
+
+By default, a new tag is created and an existing tag is left unchanged. Set
+`force-tags: true` when every requested tag must point at the resulting commit,
+such as for floating `v1` or `stable` tags. Tags are not transactional: if an
+operation fails twice, earlier tags remain applied and later tags are skipped.
+Re-running with `force-tags: true` converges all requested tags on the latest
+resulting commit.
 
 ## Outputs
 
-| Output | Description |
+| Output | Meaning |
 |---|---|
-| `commit-sha` | SHA of the new commit. When the action no-ops (nothing to add and nothing to delete), this is the existing branch HEAD. |
-| `commit-url` | `https://github.com/<owner>/<repo>/commit/<sha>` for convenience. |
+| `commit-sha` | SHA of the newly created commit, or the existing branch HEAD in the explicit no-op case. |
+| `commit-url` | GitHub URL for `commit-sha`. |
 
-## Behavior
+Reference an output through the step ID, for example
+`${{ steps.publish.outputs.commit-sha }}`.
 
-### Server-signing
+## Permissions and signing
 
-The commit shows as Verified when the token belongs to a GitHub App. A bot user or PAT works too, but the commit will not show as signed.
+The token needs `contents: write` on `target-repo`. For a different target
+repository, scope the GitHub App installation token to that repository.
 
-### Race protection
+GitHub's `createCommitOnBranch` GraphQL mutation creates the commit server-side.
+With a GitHub App token, GitHub signs it and the UI shows it as Verified. A PAT
+or bot token can write the same commit, but it may not carry a verified
+signature.
 
-The action fetches the target branch's HEAD oid right before sending the mutation and passes it as `expectedHeadOid`. If something else pushes to the branch in that window, the API rejects the mutation and the action fails. Better that than silently overwriting someone else's work.
+No private signing key is installed on or exposed to the runner.
 
-### No-op handling
+## Execution and failure behavior
 
-If source-dir is empty and prune produces no deletions, the action skips the commit and sets `commit-sha` to the existing branch HEAD. When source-dir has files whose contents match the target exactly, the API still creates a commit (the tree is identical to its parent). For strict no-op behavior in that case, compare blob SHAs yourself before invoking the action.
+The action:
 
-### Tree size limit
+1. Reads and base64-encodes the regular files under `source-dir`.
+2. Reads the current target branch HEAD.
+3. Computes deletions when `prune` is enabled.
+4. Creates the commit with that HEAD as `expectedHeadOid`.
+5. Applies requested tags to the resulting commit.
 
-The action uses the recursive Trees API (`/git/trees/{ref}?recursive=1`), which truncates around 100,000 entries or 7 MB. If your target repo is bigger, the action throws. File an issue if you hit this.
+If another writer moves the branch after step 2, GitHub rejects the commit
+instead of allowing this action to overwrite the newer branch state.
 
-### Large files
+If the source contains no files and pruning finds nothing to delete, no commit
+is created. Outputs refer to the existing branch HEAD, and requested tags are
+still applied to that HEAD. Files whose contents already match the target do
+not trigger this explicit no-op path; GitHub can still create a commit with an
+unchanged tree.
 
-`createCommitOnBranch` accepts file contents inline as base64 in the GraphQL variables. There's a practical request-size ceiling around 10–50 MB total payload. Most release artifacts (cask files, single-file binaries, small wheels) are well under this; very large trees need chunking, which the action does not currently do.
+Tag operations happen after the branch commit. A tag failure therefore fails
+the action but does not roll back the commit or any earlier tag operation.
 
-## Permissions
+## Limits
 
-The token needs `contents: write` on the target repo. If you're publishing to a different repo than the one the workflow runs in, mint a GitHub App installation token scoped to the target.
-
-## Why signed server-side
-
-Runner-side GPG signing means a private key on the runner. Three options, all bad: commit it (don't), pull from a secret on every job (key-rotation friction plus leak surface), or trust the actor's local config (fine for a human, useless for CI). `createCommitOnBranch` sidesteps this. The App's key lives in GitHub. The mutation is attributed to the App. GitHub signs the commit server-side. The runner never sees a key.
+- Target enumeration uses GitHub's recursive Trees API. The action fails rather
+  than proceeding when GitHub reports a truncated tree, typically around
+  100,000 entries or a 7 MB response.
+- File contents are sent inline as base64 in one GraphQL mutation. Very large
+  artifact trees can exceed GitHub's request-size limits and are not chunked.
+- The target branch must already exist.
 
 ## License
 
-Apache 2.0. See [LICENSE](../LICENSE) at the repo root.
+Apache 2.0. See [LICENSE](../LICENSE) at the repository root.

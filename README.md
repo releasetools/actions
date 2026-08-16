@@ -1,4 +1,4 @@
-# releasetools/actions v0.0.5
+# releasetools/actions v0.0.6
 
 Published artifact tree. Each subdirectory holds an action.yml,
 its README, and its bundled dist. Source and tests live on main:

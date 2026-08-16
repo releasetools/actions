@@ -44614,6 +44614,7 @@ const enumerate_source_1 = __nccwpck_require__(8383);
 const enumerate_target_1 = __nccwpck_require__(9839);
 const commit_1 = __nccwpck_require__(2498);
 const tag_1 = __nccwpck_require__(9671);
+const tags_input_1 = __nccwpck_require__(1243);
 const workflow_metadata_1 = __nccwpck_require__(2010);
 async function run() {
     try {
@@ -44623,7 +44624,8 @@ async function run() {
         const headline = core.getInput('headline', { required: true });
         const customBody = core.getInput('body');
         const prune = core.getBooleanInput('prune');
-        const tag = core.getInput('tag');
+        const tags = (0, tags_input_1.collectTags)(core.getMultilineInput('tags'), core.getInput('tag'));
+        const forceTags = core.getBooleanInput('force-tags');
         const token = core.getInput('token', { required: true });
         const slash = targetRepo.indexOf('/');
         if (slash <= 0 || slash === targetRepo.length - 1) {
@@ -44657,6 +44659,10 @@ async function run() {
             core.info('No additions and no deletions. Skipping commit; nothing to apply.');
             core.setOutput('commit-sha', expectedHeadOid);
             core.setOutput('commit-url', `https://github.com/${owner}/${repo}/commit/${expectedHeadOid}`);
+            await (0, tag_1.createTags)(octokit, owner, repo, tags, expectedHeadOid, forceTags);
+            if (tags.length > 0) {
+                core.info(`Tagged ${tags.join(', ')} -> ${expectedHeadOid}`);
+            }
             return;
         }
         const commitOid = await (0, commit_1.commit)(octokit, {
@@ -44673,9 +44679,9 @@ async function run() {
         core.info(`New commit on ${owner}/${repo}@${targetBranch}: ${commitOid}`);
         core.setOutput('commit-sha', commitOid);
         core.setOutput('commit-url', commitUrl);
-        if (tag) {
-            await (0, tag_1.createTag)(octokit, owner, repo, tag, commitOid);
-            core.info(`Tagged ${tag} -> ${commitOid}`);
+        await (0, tag_1.createTags)(octokit, owner, repo, tags, commitOid, forceTags);
+        if (tags.length > 0) {
+            core.info(`Tagged ${tags.join(', ')} -> ${commitOid}`);
         }
     }
     catch (err) {
@@ -44694,14 +44700,15 @@ run();
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.createTag = createTag;
+exports.createTags = createTags;
 /**
  * Creates a lightweight tag at the given commit.
  *
  * If the tag already exists, GitHub returns 422 'Reference already exists'.
- * This function treats that as success: the desired state is already on
- * the server, so re-runs of the workflow do not fail. Other errors propagate.
+ * Existing tags are left unchanged by default or force-updated when requested.
+ * Other errors propagate.
  */
-async function createTag(octokit, owner, repo, tag, commitSha) {
+async function createTag(octokit, owner, repo, tag, commitSha, force = false) {
     try {
         await octokit.rest.git.createRef({
             owner,
@@ -44713,10 +44720,61 @@ async function createTag(octokit, owner, repo, tag, commitSha) {
     catch (err) {
         const e = err;
         if (e.status === 422 && typeof e.message === 'string' && e.message.includes('Reference already exists')) {
+            if (force) {
+                await octokit.rest.git.updateRef({
+                    owner,
+                    repo,
+                    ref: `tags/${tag}`,
+                    sha: commitSha,
+                    force: true,
+                });
+            }
             return;
         }
         throw err;
     }
+}
+/** Creates each requested tag at the same commit, in input order. */
+async function createTags(octokit, owner, repo, tags, commitSha, force = false, retryDelayMs = 2000) {
+    for (const tag of tags) {
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+            try {
+                await createTag(octokit, owner, repo, tag, commitSha, force);
+                break;
+            }
+            catch (err) {
+                if (attempt === 2) {
+                    throw err;
+                }
+                await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+            }
+        }
+    }
+}
+
+
+/***/ }),
+
+/***/ 1243:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.collectTags = collectTags;
+/**
+ * Combines the multiline input with the singular convenience input.
+ * Empty values are discarded and duplicates keep their first position.
+ */
+function collectTags(tags, tag) {
+    const unique = new Set();
+    for (const value of [...tags, tag]) {
+        const trimmed = value.trim();
+        if (trimmed) {
+            unique.add(trimmed);
+        }
+    }
+    return [...unique];
 }
 
 
