@@ -85,14 +85,16 @@ jobs:
           done
 
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          printf 'published_by=[workflow run %s](%s)\n' "$GITHUB_RUN_ID" "$run_url" >> "$GITHUB_OUTPUT"
+          printf 'published_by_url=%s\n' "$run_url" >> "$GITHUB_OUTPUT"
 
           if [[ -n "$previous_version" ]]; then
             compare_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${previous_version}...${VERSION}"
-            printf 'release_ref=[%s diff](%s)\n' "$VERSION" "$compare_url" >> "$GITHUB_OUTPUT"
+            printf 'reference_label=Changes\n' >> "$GITHUB_OUTPUT"
+            printf 'reference_url=%s\n' "$compare_url" >> "$GITHUB_OUTPUT"
           else
             tag_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${VERSION}"
-            printf 'release_ref=[%s](%s)\n' "$VERSION" "$tag_url" >> "$GITHUB_OUTPUT"
+            printf 'reference_label=Tag\n' >> "$GITHUB_OUTPUT"
+            printf 'reference_url=%s\n' "$tag_url" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Stage clean publish tree
@@ -142,8 +144,8 @@ jobs:
           target-branch: release/${{ steps.major.outputs.value }}
           headline: "release: ${{ inputs.version }}"
           body: |
-            Published-By: ${{ steps.references.outputs.published_by }}
-            Release: ${{ steps.references.outputs.release_ref }}
+            Published-By: <${{ steps.references.outputs.published_by_url }}>
+            ${{ steps.references.outputs.reference_label }}: <${{ steps.references.outputs.reference_url }}>
           prune: 'true'
           token: ${{ github.token }}
 
