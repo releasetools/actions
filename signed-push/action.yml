@@ -3,7 +3,7 @@ description: >-
   Commit a directory tree to a branch on any repo. The action calls
   GitHub's createCommitOnBranch mutation, which signs the commit
   server-side using the token you pass in. No GPG key on the runner.
-  Can also tag the new commit.
+  Can also apply one or more tags to the resulting commit.
 author: 'releasetools'
 branding:
   icon: 'upload-cloud'
@@ -31,8 +31,16 @@ inputs:
     description: 'When true (default), the commit deletes any file present on the target branch but absent from source-dir (mirror mode). Set false for upsert mode: additions and updates only, no deletions.'
     required: false
     default: 'true'
+  tags:
+    description: 'Optional newline-delimited tags. The action creates each lightweight refs/tags/<tag> at the resulting commit. Duplicates are ignored.'
+    required: false
+    default: ''
+  force-tags:
+    description: 'When true, move existing requested tags to the resulting commit. When false, existing tags are left unchanged.'
+    required: false
+    default: 'false'
   tag:
-    description: 'Optional release tag. When set, the action creates a lightweight refs/tags/<tag> at the new commit. An existing tag with the same name is treated as success so re-runs do not fail.'
+    description: 'Optional singular tag shortcut. It is combined with tags when both inputs are present.'
     required: false
     default: ''
   token:

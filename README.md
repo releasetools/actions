@@ -1,47 +1,53 @@
 # releasetools/actions
 
-Small GitHub Actions for release pipelines. One subdirectory per action.
+Small, focused GitHub Actions for release pipelines. The current release is
+[`v0.0.6`](https://github.com/releasetools/actions/releases/tag/v0.0.6); use
+`v0` to follow compatible updates on the current major line.
 
-## Available actions
+## Actions
 
-| Action | What it does |
-|---|---|
-| [`signed-push`](signed-push/) | Commit a directory tree to a branch on any repo, signed server-side by the calling GitHub App. Can also tag the new commit. |
+### `signed-push`
 
-More to come: `find-run` and `watch-run` for the "wait for a downstream workflow to finish" pattern.
-
-## How tags work
-
-Each action lives in its own subdirectory with an `action.yml` and a bundled `dist/index.js`. The repo ships one version tag at a time (currently `v0.0.1`, with a floating `v0` that follows every patch). Consumers reference an action by path:
+Publish a local directory to a branch in any repository with a commit signed
+server-side by GitHub. It can replace the branch contents, update only the files
+you provide, and attach one or more lightweight tags to the resulting commit.
 
 ```yaml
+- uses: actions/create-github-app-token@v3
+  id: app-token
+  with:
+    client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+    private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+    owner: my-org
+    repositories: my-target-repo
+
 - uses: releasetools/actions/signed-push@v0
   with:
     source-dir: ./dist
-    target-repo: my-org/my-cdn-repo
+    target-repo: my-org/my-target-repo
     headline: "publish: v1.2.3"
-    tag: ${{ github.ref_name }}
+    tags: |
+      v1.2.3
+      v1
+    force-tags: true
     token: ${{ steps.app-token.outputs.token }}
 ```
 
-Tags point at a clean orphan tree: `LICENSE`, `signed-push/{action.yml, README.md, dist/}`. No source, no node_modules, no tests, no CI. Source lives on `main`.
+The action uses GitHub's `createCommitOnBranch` GraphQL mutation, so a GitHub
+App token produces a Verified commit without placing a private signing key on
+the runner. It also handles base64 file contents, race protection, pruning, and
+tag creation—the repetitive plumbing that otherwise ends up in every release
+workflow.
 
-## Why this repo exists
+See the [`signed-push` guide](signed-push/) for mirroring, upserts, inputs,
+outputs, permissions, and behavior.
 
-GitHub's `createCommitOnBranch` GraphQL mutation produces commits that are signed server-side by the calling GitHub App. No GPG key on the runner. The plumbing to call it correctly (base64 contents, `expectedHeadOid` race protection, tree-diff for deletions) is the same every time. Wrapping it once means every release pipeline that needs signed publishes can skip the jq-and-bash dance.
+More actions are planned for common cross-workflow release patterns.
 
-## Contributing
+## Development
 
-Each action is a TypeScript entry point under `<action>/src/`, bundled with `@vercel/ncc` into `<action>/dist/index.js` at release time. Local dev:
-
-```bash
-npm ci
-npm run lint           # tsc --noEmit
-npm test               # vitest
-npm run build          # ncc bundle into <action>/dist/
-```
-
-The `dist/` directory is gitignored on `main`. The release workflow builds it fresh on every tag.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the repository layout, local
+development commands, and how action releases are assembled.
 
 ## License
 

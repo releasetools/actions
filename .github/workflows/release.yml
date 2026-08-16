@@ -143,48 +143,11 @@ jobs:
           body: |
             ${{ steps.references.outputs.reference_label }}: <${{ steps.references.outputs.reference_url }}>
           prune: 'true'
+          tags: |
+            ${{ inputs.version }}
+            ${{ steps.major.outputs.value }}
+          force-tags: 'true'
           token: ${{ github.token }}
-
-      # Force-move both tags to the new signed commit. Re-runs of a given
-      # version should always re-point that version's tag at the latest
-      # release commit, and the floating major tag follows every patch.
-      # Tries PATCH first (force-update if the ref exists); falls back to
-      # POST (create) on the "does not exist" path. Each call retries
-      # once after a short delay so transient eventual-consistency on
-      # GitHub's ref API does not break the publish.
-      - name: Tag the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
-          MAJOR: ${{ steps.major.outputs.value }}
-          NEW_SHA: ${{ steps.publish.outputs.commit-sha }}
-        run: |
-          set -euo pipefail
-
-          upsert_tag() {
-            local ref=$1 sha=$2 attempt
-            for attempt in 1 2; do
-              # Force-update if the ref already exists.
-              if gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/${ref}" \
-                  -f sha="${sha}" -F force=true --silent 2>/dev/null; then
-                echo "moved ${ref} -> ${sha:0:12}"
-                return 0
-              fi
-              # Otherwise create it.
-              if gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
-                  -f ref="refs/${ref}" -f sha="${sha}" --silent 2>/dev/null; then
-                echo "created ${ref} at ${sha:0:12}"
-                return 0
-              fi
-              echo "upsert ${ref} attempt ${attempt} failed; retrying in 2s"
-              sleep 2
-            done
-            echo "::error::Could not upsert ${ref} after retries"
-            return 1
-          }
-
-          upsert_tag "tags/${VERSION}" "${NEW_SHA}"
-          upsert_tag "tags/${MAJOR}"   "${NEW_SHA}"
 
       - name: Workflow summary
         env:

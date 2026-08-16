@@ -3,7 +3,8 @@ import { context, getOctokit } from '@actions/github';
 import { enumerateSource } from './enumerate-source';
 import { enumerateTarget } from './enumerate-target';
 import { commit } from './commit';
-import { createTag } from './tag';
+import { createTags } from './tag';
+import { collectTags } from './tags-input';
 import { appendWorkflowMetadata } from './workflow-metadata';
 
 export async function run(): Promise<void> {
@@ -14,7 +15,8 @@ export async function run(): Promise<void> {
     const headline = core.getInput('headline', { required: true });
     const customBody = core.getInput('body');
     const prune = core.getBooleanInput('prune');
-    const tag = core.getInput('tag');
+    const tags = collectTags(core.getMultilineInput('tags'), core.getInput('tag'));
+    const forceTags = core.getBooleanInput('force-tags');
     const token = core.getInput('token', { required: true });
 
     const slash = targetRepo.indexOf('/');
@@ -58,6 +60,10 @@ export async function run(): Promise<void> {
         'commit-url',
         `https://github.com/${owner}/${repo}/commit/${expectedHeadOid}`,
       );
+      await createTags(octokit, owner, repo, tags, expectedHeadOid, forceTags);
+      if (tags.length > 0) {
+        core.info(`Tagged ${tags.join(', ')} -> ${expectedHeadOid}`);
+      }
       return;
     }
 
@@ -76,9 +82,9 @@ export async function run(): Promise<void> {
     core.setOutput('commit-sha', commitOid);
     core.setOutput('commit-url', commitUrl);
 
-    if (tag) {
-      await createTag(octokit, owner, repo, tag, commitOid);
-      core.info(`Tagged ${tag} -> ${commitOid}`);
+    await createTags(octokit, owner, repo, tags, commitOid, forceTags);
+    if (tags.length > 0) {
+      core.info(`Tagged ${tags.join(', ')} -> ${commitOid}`);
     }
   } catch (err) {
     core.setFailed(err instanceof Error ? err.message : String(err));
