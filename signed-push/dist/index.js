@@ -44614,13 +44614,14 @@ const enumerate_source_1 = __nccwpck_require__(8383);
 const enumerate_target_1 = __nccwpck_require__(9839);
 const commit_1 = __nccwpck_require__(2498);
 const tag_1 = __nccwpck_require__(9671);
+const workflow_metadata_1 = __nccwpck_require__(2010);
 async function run() {
     try {
         const sourceDir = core.getInput('source-dir', { required: true });
         const targetRepo = core.getInput('target-repo', { required: true });
         const targetBranch = core.getInput('target-branch') || 'main';
         const headline = core.getInput('headline', { required: true });
-        const body = core.getInput('body');
+        const customBody = core.getInput('body');
         const prune = core.getBooleanInput('prune');
         const tag = core.getInput('tag');
         const token = core.getInput('token', { required: true });
@@ -44630,6 +44631,13 @@ async function run() {
         }
         const owner = targetRepo.slice(0, slash);
         const repo = targetRepo.slice(slash + 1);
+        const workflowRepo = `${github_1.context.repo.owner}/${github_1.context.repo.repo}`;
+        const body = (0, workflow_metadata_1.appendWorkflowMetadata)(customBody, {
+            serverUrl: github_1.context.serverUrl,
+            repository: workflowRepo,
+            sha: github_1.context.sha,
+            runId: github_1.context.runId,
+        });
         const octokit = (0, github_1.getOctokit)(token);
         const additions = await (0, enumerate_source_1.enumerateSource)(sourceDir);
         core.info(`Source: ${additions.length} file(s) under ${sourceDir}`);
@@ -44709,6 +44717,30 @@ async function createTag(octokit, owner, repo, tag, commitSha) {
         }
         throw err;
     }
+}
+
+
+/***/ }),
+
+/***/ 2010:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.appendWorkflowMetadata = appendWorkflowMetadata;
+/**
+ * Appends links identifying the workflow revision and run that created the
+ * target commit. A caller-provided body is kept first and visually separated
+ * from the inferred footer.
+ */
+function appendWorkflowMetadata(body, metadata) {
+    const footer = [
+        `Workflow-Commit: <${metadata.serverUrl}/${metadata.repository}/commit/${metadata.sha}>`,
+        `Published-By: <${metadata.serverUrl}/${metadata.repository}/actions/runs/${metadata.runId}>`,
+    ].join('\n');
+    const customBody = body.trim();
+    return customBody ? `${customBody}\n\n---\n\n${footer}` : footer;
 }
 
 

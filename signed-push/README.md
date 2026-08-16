@@ -28,9 +28,7 @@ If you also pass a `tag`, the action creates a lightweight tag at the new commit
     target-branch: main
     headline: "publish: v${{ github.ref_name }}"
     body: |
-      Source-Commit: <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}>
       Source-Tag: <${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}>
-      Published-By: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}>
     tag: ${{ github.ref_name }}
     token: ${{ steps.app-token.outputs.token }}
 ```
@@ -45,8 +43,6 @@ The commit replaces every file on `main` with what's in `./dist`, then creates `
     source-dir: ./Casks       # contains only Casks/myapp.rb
     target-repo: my-org/homebrew-tap
     headline: "fix: update Darwin checksums for v1.2.3"
-    body: |
-      Source-Commit: <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}>
     prune: false              # leave other files in the tap alone
     token: ${{ steps.app-token.outputs.token }}
 ```
@@ -61,14 +57,29 @@ With `prune: false`, the action only commits additions. Files on the target that
 | `target-repo` | yes | — | `owner/repo` of the destination. |
 | `target-branch` | no | `main` | Branch to commit on. |
 | `headline` | yes | — | Commit message headline. |
-| `body` | no | `""` | Commit message body. Pass RFC-822 trailers pre-formed if you want them. |
+| `body` | no | `""` | Optional custom commit message body. Workflow metadata is always appended automatically. |
 | `prune` | no | `true` | When true, deletes target files absent from source-dir. When false, additions only. |
 | `tag` | no | `""` | Lightweight tag to create at the new commit. Idempotent when the tag already exists. |
 | `token` | no | — | Token with `contents:write` on target-repo. App installation tokens make the commit Verified. |
 
-The action passes `body` through unchanged. Wrap URLs in angle brackets, such
-as `<https://github.com/my-org/my-repo/compare/v1.2.2...v1.2.3>`, so GitHub
-displays them as autolinks.
+The action always appends these references to every commit body:
+
+```text
+Workflow-Commit: <https://github.com/my-org/source-repo/commit/abc1234>
+Published-By: <https://github.com/my-org/source-repo/actions/runs/123456>
+```
+
+They identify the revision GitHub ran and the workflow run that invoked the
+action. When `body` contains custom content, it comes first and is separated
+from the inferred footer by a blank line and `---`. Custom body URLs should also
+be wrapped in angle brackets so GitHub displays them as autolinks.
+
+For `pull_request` workflows, `Workflow-Commit` is normally GitHub's synthetic
+merge commit. The PR's actual head revision is available separately as
+`${{ github.event.pull_request.head.sha }}` and its repository as
+`${{ github.event.pull_request.head.repo.full_name }}`. Use both values when
+constructing a head-commit URL because the pull request may originate from a
+fork.
 
 ## Outputs
 
