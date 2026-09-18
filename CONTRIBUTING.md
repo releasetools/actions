@@ -40,6 +40,13 @@ Consumers select an action by subdirectory and version, for example
 `releasetools/actions/signed-push@v0`. The published tree intentionally excludes
 source, tests, dependencies, and CI configuration.
 
+The same run publishes `plugin-release`'s CLI to npm as
+`@releasetools/plugin-release`, at the version being released without its
+leading `v`, so a marketplace repository can hold the check as a devDependency
+and run it before pushing. Authentication is npm trusted publishing: the job's
+`id-token: write` permission is enough, and the workflow filename registered on
+npmjs.com is `release.yml`.
+
 To publish, dispatch `.github/workflows/release.yml` with a version matching
 `vMAJOR.MINOR.PATCH`. The workflow validates, tests, builds, publishes, and moves
 both tags.

@@ -42,6 +42,32 @@ workflow.
 See the [`signed-push` guide](signed-push/) for mirroring, upserts, inputs,
 outputs, permissions, and behavior.
 
+### `plugin-release`
+
+Fail a pull request when a plugin in a marketplace monorepo changed without
+declaring its release: its manifest version has to move, and its `CHANGELOG.md`
+has to open a section for the version it now claims.
+
+```yaml
+- uses: actions/checkout@v6
+  with:
+    # The check compares this tree against the base branch, so it needs both.
+    fetch-depth: 0
+
+- uses: releasetools/actions/plugin-release@v0
+  if: github.event_name == 'pull_request'
+  with:
+    base: ${{ github.event.pull_request.base.sha }}
+```
+
+Each plugin that failed the rule becomes an annotation on the pull request. The
+same check installs from npm as `@releasetools/plugin-release`, so a maintainer
+can run `plugin-release --base origin/main` before pushing instead of hearing
+about it from CI.
+
+See the [`plugin-release` guide](plugin-release/) for the rule, the inputs, and
+the exit codes.
+
 More actions are planned for common cross-workflow release patterns.
 
 ## Development
