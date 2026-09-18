@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ignoreMatcher } from './ignore';
-import { type Module, resolveModules } from './modules';
+import { type Project, resolveProjects } from './projects';
 import { UsageError } from './usage-error';
 
 export { UsageError };
@@ -20,12 +20,12 @@ export type Git = (cwd: string, args: string[]) => GitResult;
 /** What the caller gets when it says nothing. */
 export const DEFAULTS = {
   /** The repository itself, which is what a single-version repository needs. */
-  modules: ['./'],
+  projects: ['./'],
   manifest: 'package.json',
   changelog: 'CHANGELOG.md',
   /**
-   * Files whose edits are not a change to the module. The changelog is here
-   * because the entry a release writes lands inside the module, so counting
+   * Files whose edits are not a change to the project. The changelog is here
+   * because the entry a release writes lands inside the project, so counting
    * it would ask for a version whose only change is the sentence describing
    * it.
    */
@@ -38,12 +38,12 @@ export interface CheckOptions {
   /** Ref the working tree is compared against, such as origin/main. */
   base: string;
   /** Directories to check, as paths or globs. `./` is the repository itself. */
-  modules?: readonly string[];
-  /** Manifest carrying the version, relative to a module's directory. */
+  projects?: readonly string[];
+  /** Manifest carrying the version, relative to a project's directory. */
   manifest?: string;
-  /** Changelog, relative to a module's directory. */
+  /** Changelog, relative to a project's directory. */
   changelog?: string;
-  /** Files whose edits do not count as the module changing. */
+  /** Files whose edits do not count as the project changing. */
   ignoreFiles?: readonly string[];
   /** Whether those patterns are matched case-sensitively. */
   caseSensitive?: boolean;
@@ -51,14 +51,14 @@ export interface CheckOptions {
 }
 
 export interface CheckResult {
-  /** One line per module that recorded its new version. */
+  /** One line per project that recorded its new version. */
   released: string[];
-  /** One line per module that did not. */
+  /** One line per project that did not. */
   errors: string[];
 }
 
 /**
- * Every module whose source changed has to record the change: a version that
+ * Every project whose source changed has to record the change: a version that
  * moved, and a changelog section carrying that same version.
  *
  * Where a repository publishes from its main branch, an edit is just a commit
@@ -71,7 +71,7 @@ export interface CheckResult {
 export function guard(options: CheckOptions): CheckResult {
   const {
     base,
-    modules = DEFAULTS.modules,
+    projects = DEFAULTS.projects,
     manifest = DEFAULTS.manifest,
     changelog = DEFAULTS.changelog,
     ignoreFiles = DEFAULTS.ignoreFiles,
@@ -80,7 +80,10 @@ export function guard(options: CheckOptions): CheckResult {
   } = options;
 
   if (base.trim() === '') {
-    throw new UsageError('base is required, for example origin/main');
+    throw new UsageError(
+      'nothing to compare against. On a pull request the base comes from the ' +
+        'event; anywhere else, name one, for example origin/main',
+    );
   }
 
   const root = path.resolve(options.root);
@@ -89,8 +92,8 @@ export function guard(options: CheckOptions): CheckResult {
   const released: string[] = [];
   const errors: string[] = [];
 
-  for (const module of resolveModules(root, modules)) {
-    const changed = changedFiles(git, root, base, module);
+  for (const project of resolveProjects(root, projects)) {
+    const changed = changedFiles(git, root, base, project);
     if (typeof changed === 'string') {
       errors.push(changed);
       continue;
@@ -99,7 +102,7 @@ export function guard(options: CheckOptions): CheckResult {
       continue;
     }
 
-    const manifestPath = within(module, manifest);
+    const manifestPath = within(project, manifest);
     let now: string;
     try {
       now = versionIn(fs.readFileSync(path.join(root, manifestPath), 'utf8'));
@@ -110,9 +113,9 @@ export function guard(options: CheckOptions): CheckResult {
 
     const before = git(root, ['show', `${base}:${manifestPath}`]);
     if (before.status !== 0) {
-      // Not there at the base commit, so the module is new and its first
+      // Not there at the base commit, so the project is new and its first
       // version is whatever it says.
-      released.push(`${module.label} is new, at ${now}`);
+      released.push(`${project.label} is new, at ${now}`);
     } else {
       let was: string;
       try {
@@ -123,16 +126,16 @@ export function guard(options: CheckOptions): CheckResult {
       }
       if (compareVersions(now, was) <= 0) {
         errors.push(
-          `${module.label} changed but its version is still ${now}. Somebody has ${was} ` +
+          `${project.label} changed but its version is still ${now}. Somebody has ${was} ` +
             'installed, and a client compares versions to decide whether an update ' +
             'exists, so bump it before merging.',
         );
         continue;
       }
-      released.push(`${module.label} ${was} -> ${now}`);
+      released.push(`${project.label} ${was} -> ${now}`);
     }
 
-    const complaint = changelogError(root, module, changelog, now);
+    const complaint = changelogError(root, project, changelog, now);
     if (complaint) {
       errors.push(complaint);
     }
@@ -142,17 +145,17 @@ export function guard(options: CheckOptions): CheckResult {
 }
 
 /**
- * What changed inside a module, module-relative, or the complaint about why
+ * What changed inside a project, project-relative, or the complaint about why
  * git could not say.
  *
  * Two questions, because they have two answers. `diff` knows what moved
  * against the base ref and nothing about a file git has never seen, and
- * `ls-files --others` knows the new ones. A module somebody just wrote is
+ * `ls-files --others` knows the new ones. A project somebody just wrote is
  * untracked until it is added, and a command that called that repository
  * clean would be worth nothing to the person running it before they push.
  */
-function changedFiles(git: Git, root: string, base: string, module: Module): string[] | string {
-  const pathspec = module.path === '' ? '.' : module.path;
+function changedFiles(git: Git, root: string, base: string, project: Project): string[] | string {
+  const pathspec = project.path === '' ? '.' : project.path;
 
   const diff = git(root, ['diff', '--name-only', base, '--', pathspec]);
   if (diff.status !== 0) {
@@ -167,10 +170,10 @@ function changedFiles(git: Git, root: string, base: string, module: Module): str
     pathspec,
   ]);
   if (untracked.status !== 0) {
-    return `cannot list new files under ${module.label}: ${untracked.stderr.trim()}`;
+    return `cannot list new files under ${project.label}: ${untracked.stderr.trim()}`;
   }
 
-  const prefix = module.path === '' ? '' : `${module.path}/`;
+  const prefix = project.path === '' ? '' : `${project.path}/`;
   const files = new Set<string>();
   for (const line of [...lines(diff.stdout), ...lines(untracked.stdout)]) {
     files.add(line.startsWith(prefix) ? line.slice(prefix.length) : line);
@@ -185,23 +188,23 @@ function lines(output: string): string[] {
     .filter((line) => line !== '');
 }
 
-/** A path inside a module, as the repository sees it. */
-function within(module: Module, relative: string): string {
-  return module.path === '' ? relative : `${module.path}/${relative}`;
+/** A path inside a project, as the repository sees it. */
+function within(project: Project, relative: string): string {
+  return project.path === '' ? relative : `${project.path}/${relative}`;
 }
 
-/** The complaint about a module's changelog, or null when it carries the version. */
+/** The complaint about a project's changelog, or null when it carries the version. */
 function changelogError(
   root: string,
-  module: Module,
+  project: Project,
   changelog: string,
   version: string,
 ): string | null {
-  const relative = within(module, changelog);
+  const relative = within(project, changelog);
   const file = path.join(root, relative);
   if (!fs.existsSync(file)) {
     return (
-      `${module.label} is at ${version} and has no ${changelog}. A release writes itself ` +
+      `${project.label} is at ${version} and has no ${changelog}. A release writes itself ` +
       `into ${relative}, newest first: what changed, and the choices behind it.`
     );
   }

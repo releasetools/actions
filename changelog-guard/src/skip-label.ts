@@ -1,4 +1,4 @@
-import * as fs from 'node:fs';
+import { pullRequest } from './event';
 
 /**
  * The label that turns the check off for one pull request.
@@ -10,29 +10,9 @@ import * as fs from 'node:fs';
  */
 export const SKIP_LABEL = 'skip-changelog-guard';
 
-/**
- * Whether this run is a pull request carrying the skip label.
- *
- * The labels are read straight out of the event file rather than through
- * @actions/github, which would bundle Octokit to parse one JSON file the
- * runner already wrote to disk.
- */
+/** Whether this run is a pull request carrying the skip label. */
 export function skipRequested(): boolean {
-  return carriesLabel(pullRequestLabels());
-}
-
-export function pullRequestLabels(): unknown {
-  const file = process.env['GITHUB_EVENT_PATH'];
-  if (!file) {
-    return undefined;
-  }
-  try {
-    const payload: unknown = JSON.parse(fs.readFileSync(file, 'utf8'));
-    return (payload as { pull_request?: { labels?: unknown } }).pull_request?.labels;
-  } catch {
-    // No event file, or one this run cannot read. The check runs.
-    return undefined;
-  }
+  return carriesLabel(pullRequest()?.labels);
 }
 
 /**

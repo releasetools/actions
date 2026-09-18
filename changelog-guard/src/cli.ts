@@ -10,7 +10,7 @@ export interface Streams {
 const OPTIONS = {
   base: { type: 'string' },
   root: { type: 'string' },
-  modules: { type: 'string', multiple: true },
+  projects: { type: 'string', multiple: true },
   manifest: { type: 'string' },
   changelog: { type: 'string' },
   'ignore-files': { type: 'string', multiple: true },
@@ -21,11 +21,11 @@ const USAGE = `Usage: changelog-guard --base <ref> [options]
 
   --base <ref>          required, for example origin/main
   --root <dir>          repository root (default: the working directory)
-  --modules <glob>      a directory to check, repeatable (default: ${DEFAULTS.modules.join(', ')}).
+  --projects <glob>      a directory to check, repeatable (default: ${DEFAULTS.projects.join(', ')}).
                         ./ is the repository itself, ./* every directory at
                         the top, packages/* every one under packages
-  --manifest <path>     relative to a module (default: ${DEFAULTS.manifest})
-  --changelog <path>    relative to a module (default: ${DEFAULTS.changelog})
+  --manifest <path>     relative to a project (default: ${DEFAULTS.manifest})
+  --changelog <path>    relative to a project (default: ${DEFAULTS.changelog})
   --ignore-files <glob> a file whose edits are not a change, repeatable
                         (default: ${DEFAULTS.ignoreFiles.join(', ')}). Matched
                         against the end of a path, so README.md matches at
@@ -47,7 +47,7 @@ export function runCli(argv: string[], streams: Streams): number {
     result = guard({
       root: values.root ?? process.cwd(),
       base: values.base ?? '',
-      modules: values.modules,
+      projects: values.projects,
       manifest: values.manifest,
       changelog: values.changelog,
       // `--ignore-files ''` is how a caller asks for every file to count, so
@@ -76,8 +76,8 @@ export function runCli(argv: string[], streams: Streams): number {
 
   streams.out(
     result.released.length === 0
-      ? 'No module changed\n'
-      : 'Every changed module recorded its new version\n',
+      ? 'No project changed\n'
+      : 'Every changed project recorded its new version\n',
   );
   return 0;
 }

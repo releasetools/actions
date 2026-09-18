@@ -1,5 +1,5 @@
 /**
- * The glob dialect both the module patterns and the ignore patterns speak.
+ * The glob dialect both the project patterns and the ignore patterns speak.
  *
  * `*` and `?` match inside one path segment, `**` matches across segments.
  * That is enough for `plugins/*`, `*.md` and `docs/**`, and small enough to

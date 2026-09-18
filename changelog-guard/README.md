@@ -1,20 +1,22 @@
 # `changelog-guard`
 
-Fail a pull request when a module changed without recording it. It runs as a
+Fail a pull request when a project changed without recording it. It runs as a
 GitHub Action on `pull_request`, and as a command a maintainer can run before
 pushing.
 
-A module here is any directory with its own version: the repository itself, a
+A project here is any directory with its own version: the repository itself, a
 package in a workspace, a plugin in a marketplace. Where a repository installs
 straight off `main` there is no build and no publish step to hang a check on.
 An edit is just a commit, and the merge is the release. That leaves the diff as
-the only place to catch a module that shipped under its old version, which no
+the only place to catch a project that shipped under its old version, which no
 client will fetch, or one that shipped with nothing written down about what
 changed.
 
 ## Quick start
 
-For a repository that is one versioned thing, `base` is the only input:
+For a repository that is one versioned thing, it needs no inputs at all. A pull
+request already says what it is against, and the action reads that from the
+event:
 
 ```yaml
 - uses: actions/checkout@v6
@@ -24,8 +26,6 @@ For a repository that is one versioned thing, `base` is the only input:
 
 - uses: releasetools/actions/changelog-guard@v0
   if: github.event_name == 'pull_request'
-  with:
-    base: ${{ github.event.pull_request.base.sha }}
 ```
 
 For a repository of many, name them:
@@ -34,12 +34,13 @@ For a repository of many, name them:
 - uses: releasetools/actions/changelog-guard@v0
   if: github.event_name == 'pull_request'
   with:
-    base: ${{ github.event.pull_request.base.sha }}
-    modules: packages/*
+    projects: packages/*
     manifest: package.json
 ```
 
-Every module that failed the rule becomes an annotation on the pull request,
+Outside a pull request there is nothing to read, so `base` has to be set.
+
+Every project that failed the rule becomes an annotation on the pull request,
 and the step fails.
 
 ## Run it before you push
@@ -50,7 +51,7 @@ npm install --save-dev @releasetools/changelog-guard
 
 ```json
 "scripts": {
-  "check:changelog": "changelog-guard --base origin/main --modules 'packages/*'"
+  "check:changelog": "changelog-guard --base origin/main --projects 'packages/*'"
 }
 ```
 
@@ -60,16 +61,16 @@ The published package version matches the action release it was built from, so
 
 The command takes the action's inputs as flags, one for one, plus `--root` for
 the repository root, and returns the same exit codes. It also sees files git
-has never been told about, so a module you have written but not committed is
+has never been told about, so a project you have written but not committed is
 checked the way it will be once you do.
 
-## Which modules get checked
+## Which projects get checked
 
-`modules` is a newline-delimited list of directories, as paths or globs.
+`projects` is a newline-delimited list of directories, as paths or globs.
 
 | pattern | |
 | --- | --- |
-| `./` | the repository itself, one module. The default |
+| `./` | the repository itself, one project. The default |
 | `./*` | every directory at the top, hidden ones excluded |
 | `packages/*` | every directory under `packages` |
 | `packages/web` | that one |
@@ -81,16 +82,16 @@ success and is not.
 
 ## The rule
 
-For every module, in path order:
+For every project, in path order:
 
 1. Ask git what changed under it against `base`, and what it holds that git has
    never seen. Drop the files `ignore-files` names. Nothing left, nothing to
    check.
 2. Read the version from the working tree's manifest.
-3. Read the manifest at `base`. Absent means the module is new, so no version
+3. Read the manifest at `base`. Absent means the project is new, so no version
    comparison is asked of it.
 4. Present means the working tree's version must be strictly greater. Equal or
-   lower fails, and that module is not checked further.
+   lower fails, and that project is not checked further.
 5. `CHANGELOG.md` must exist and must open a section for the version the
    working tree now claims.
 
@@ -123,7 +124,7 @@ alone asks for nothing. Without it, fixing a typo in a changelog would demand a
 version whose only change is the sentence describing the typo.
 
 Each pattern is matched against the end of a path, on segment boundaries, so
-one entry covers a file that appears once per module:
+one entry covers a file that appears once per project:
 
 | pattern | matches |
 | --- | --- |
@@ -137,22 +138,22 @@ unless `case-sensitive` is set, because `README.md` and `ReadMe.md` are the
 same file to whoever wrote the pattern. Set the input empty to count every
 file.
 
-A changed module still has to carry a changelog section for its new version:
+A changed project still has to carry a changelog section for its new version:
 `ignore-files` decides what counts as changing, not what a release has to say.
 
 ## Input reference
 
 | input | default | |
 | --- | --- | --- |
-| `base` | required | the ref to compare against. On a pull request, `github.event.pull_request.base.sha` |
-| `modules` | `./` | newline-delimited directories to check, as paths or globs |
-| `manifest` | `package.json` | the file holding `version`, relative to a module |
-| `changelog` | `CHANGELOG.md` | relative to a module |
+| `base` | the pull request's base | the ref to compare against. Read from the event on a pull request, required anywhere else |
+| `projects` | `./` | newline-delimited directories to check, as paths or globs |
+| `manifest` | `package.json` | the file holding `version`, relative to a project |
+| `changelog` | `CHANGELOG.md` | relative to a project |
 | `ignore-files` | `CHANGELOG.md`, `README.md`, `LICENSE` | newline-delimited files whose edits are not a change |
 | `case-sensitive` | `false` | match `ignore-files` exactly rather than ignoring case |
 
-The action reports through `@actions/core`: one `info` line per module that
-recorded its new version, one `error` annotation per module that did not.
+The action reports through `@actions/core`: one `info` line per project that
+recorded its new version, one `error` annotation per project that did not.
 
 ### Turning it off for one pull request
 
@@ -169,24 +170,24 @@ The CLI has no equivalent: there is no pull request to carry a label.
 
 ## Output and exit codes
 
-The command writes one line per module that recorded its new version, then a
+The command writes one line per project that recorded its new version, then a
 verdict:
 
 ```
 packages/api 0.2.0 -> 0.2.1
 packages/web is new, at 0.1.0
-Every changed module recorded its new version
+Every changed project recorded its new version
 ```
 
-A module is named by its path, or by the repository's own directory name when
+A project is named by its path, or by the repository's own directory name when
 it is the repository. Failures go to stderr under a `Changelog check failed:`
 heading, one `- ` line each.
 
 | code | |
 | --- | --- |
 | 0 | the rule holds |
-| 1 | at least one module failed it |
-| 2 | usage: no `base`, an unknown flag, or a pattern matching no directory |
+| 1 | at least one project failed it |
+| 2 | usage: nothing to compare against, an unknown flag, or a pattern matching no directory |
 
 ## What it will not do
 

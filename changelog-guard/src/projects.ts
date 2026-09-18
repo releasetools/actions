@@ -4,7 +4,7 @@ import { isGlob, normalise, segmentPattern } from './glob';
 import { UsageError } from './usage-error';
 
 /** One versioned thing in the repository. */
-export interface Module {
+export interface Project {
   /** Repository-relative directory, empty for the repository root. */
   path: string;
   /** What the output calls it: the path, or the repository's own name. */
@@ -16,19 +16,19 @@ export interface Module {
 /**
  * Turns the caller's patterns into the directories to check.
  *
- * `./` is the repository itself, one module, which is what a repository with
+ * `./` is the repository itself, one project, which is what a repository with
  * a single version needs. `./*` is every directory at the top, `packages/*`
  * every directory under one of them, and a plain path is itself. Patterns
  * expand a segment at a time rather than by walking the whole repository, so
  * naming a directory costs a readdir of its parent.
  *
  * A pattern matching nothing is an error rather than an empty pass. Silently
- * checking no modules is the one outcome that looks like success and is not.
+ * checking no projects is the one outcome that looks like success and is not.
  */
-export function resolveModules(root: string, patterns: readonly string[]): Module[] {
+export function resolveProjects(root: string, patterns: readonly string[]): Project[] {
   const wanted = patterns.map((pattern) => pattern.trim()).filter((pattern) => pattern !== '');
   if (wanted.length === 0) {
-    throw new UsageError('no module to check; name one, or use ./ for the repository itself');
+    throw new UsageError('no project to check; name one, or use ./ for the repository itself');
   }
 
   const found = new Set<string>();

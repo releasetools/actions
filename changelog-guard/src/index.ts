@@ -1,4 +1,5 @@
 import * as core from '@actions/core';
+import { baseSha } from './event';
 import { guard } from './guard';
 import { SKIP_LABEL, skipRequested } from './skip-label';
 
@@ -13,8 +14,10 @@ export function run(): void {
 
     const { released, errors } = guard({
       root: process.cwd(),
-      base: core.getInput('base', { required: true }),
-      modules: core.getMultilineInput('modules'),
+      // A pull request already says what it is against, so the input is an
+      // override for the runs that are not one.
+      base: core.getInput('base') || baseSha() || '',
+      projects: core.getMultilineInput('projects'),
       manifest: core.getInput('manifest') || undefined,
       changelog: core.getInput('changelog') || undefined,
       ignoreFiles: core.getMultilineInput('ignore-files'),
@@ -40,7 +43,7 @@ export function run(): void {
     }
 
     core.info(
-      released.length === 0 ? 'No module changed' : 'Every changed module recorded its new version',
+      released.length === 0 ? 'No project changed' : 'Every changed project recorded its new version',
     );
   } catch (err) {
     core.setFailed(err instanceof Error ? err.message : String(err));

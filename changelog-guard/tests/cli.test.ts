@@ -24,7 +24,7 @@ describe('runCli', () => {
     fs.writeFileSync(file, contents);
   }
 
-  function module(version: string, changelog: string): void {
+  function project(version: string, changelog: string): void {
     write('plugins/docket/plugin.json', `${JSON.stringify({ name: 'docket', version })}\n`);
     write('plugins/docket/CHANGELOG.md', changelog);
   }
@@ -47,23 +47,23 @@ describe('runCli', () => {
       },
     };
     const code = runCli(
-      ['--root', root, '--modules', 'plugins/*', '--manifest', 'plugin.json', ...argv],
+      ['--root', root, '--projects', 'plugins/*', '--manifest', 'plugin.json', ...argv],
       streams,
     );
     return { code, out, err };
   }
 
   beforeEach(() => {
-    root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'modules-')));
+    root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'projects-')));
     git('init', '-b', 'main');
     git('config', 'user.email', 'test@example.invalid');
     git('config', 'user.name', 'Test');
     git('config', 'commit.gpgsign', 'false');
-    module('0.1.0', '# docket\n\n## 0.1.0\n\nThe first release.\n');
+    project('0.1.0', '# docket\n\n## 0.1.0\n\nThe first release.\n');
     write('plugins/docket/README.md', '# docket\n');
     write('plugins/docket/skills/docket/SKILL.md', '# skill\n');
     write('.gitignore', 'build/\n');
-    base = commit('the module as it stands');
+    base = commit('the project as it stands');
   });
 
   afterEach(() => {
@@ -74,13 +74,13 @@ describe('runCli', () => {
     const { code, out, err } = run('--base', base);
 
     expect(code).toBe(0);
-    expect(out).toBe('No module changed\n');
+    expect(out).toBe('No project changed\n');
     expect(err).toBe('');
   });
 
-  it('fails a module edited without a bump', () => {
+  it('fails a project edited without a bump', () => {
     write('plugins/docket/skills/docket/SKILL.md', '# skill\n\nA second line.\n');
-    commit('edit the module');
+    commit('edit the project');
 
     const { code, err } = run('--base', base);
 
@@ -89,21 +89,21 @@ describe('runCli', () => {
     expect(err).toContain('still 0.1.0');
   });
 
-  it('passes a module that recorded its new version', () => {
+  it('passes a project that recorded its new version', () => {
     write('plugins/docket/skills/docket/SKILL.md', '# skill\n\nA second line.\n');
-    module('0.2.0', '# docket\n\n## 0.2.0 - 2026-09-18\n\nA second line.\n\n## 0.1.0\n\nFirst.\n');
+    project('0.2.0', '# docket\n\n## 0.2.0 - 2026-09-18\n\nA second line.\n\n## 0.1.0\n\nFirst.\n');
     commit('release 0.2.0');
 
     const { code, out } = run('--base', base);
 
     expect(code).toBe(0);
     expect(out).toBe(
-      'plugins/docket 0.1.0 -> 0.2.0\nEvery changed module recorded its new version\n',
+      'plugins/docket 0.1.0 -> 0.2.0\nEvery changed project recorded its new version\n',
     );
   });
 
   it('fails a bump whose changelog stayed behind', () => {
-    module('0.2.0', '# docket\n\n## 0.1.0\n\nThe first release.\n');
+    project('0.2.0', '# docket\n\n## 0.1.0\n\nThe first release.\n');
     commit('bump and forget');
 
     const { code, err } = run('--base', base);
@@ -121,7 +121,7 @@ describe('runCli', () => {
     expect(err).toContain('still 0.1.0');
   });
 
-  it('sees a module that was never committed', () => {
+  it('sees a project that was never committed', () => {
     write('plugins/scaffold/plugin.json', `${JSON.stringify({ version: '0.1.0' })}\n`);
     write('plugins/scaffold/skills/x.md', '# x\n');
 
@@ -138,7 +138,7 @@ describe('runCli', () => {
     const { code, out } = run('--base', base);
 
     expect(code).toBe(0);
-    expect(out).toBe('No module changed\n');
+    expect(out).toBe('No project changed\n');
   });
 
   it('asks for nothing when a real commit only touched the README', () => {
@@ -148,7 +148,7 @@ describe('runCli', () => {
     const { code, out } = run('--base', base);
 
     expect(code).toBe(0);
-    expect(out).toBe('No module changed\n');
+    expect(out).toBe('No project changed\n');
   });
 
   it('counts the README when the caller passes no ignores', () => {
@@ -161,7 +161,7 @@ describe('runCli', () => {
     expect(err).toContain('still 0.1.0');
   });
 
-  it('treats the repository as one module when nothing names any', () => {
+  it('treats the repository as one project when nothing names any', () => {
     write('package.json', `${JSON.stringify({ version: '0.1.0' })}\n`);
     write('CHANGELOG.md', '## 0.1.0\n\nThe first release.\n');
     const versioned = commit('give the repository a version');
@@ -179,16 +179,16 @@ describe('runCli', () => {
     expect(err).toContain(`${path.basename(root)} changed but its version is still 0.1.0`);
   });
 
-  it('prints usage and exits 2 without a base', () => {
+  it('prints usage and exits 2 with nothing to compare against', () => {
     const { code, err } = run();
 
     expect(code).toBe(2);
-    expect(err).toContain('base is required');
+    expect(err).toContain('nothing to compare against');
     expect(err).toContain('Usage: changelog-guard --base <ref>');
   });
 
   it('prints usage and exits 2 for a pattern that matches nothing', () => {
-    const { code, err } = run('--base', base, '--modules', 'nowhere/*');
+    const { code, err } = run('--base', base, '--projects', 'nowhere/*');
 
     expect(code).toBe(2);
     expect(err).toContain('no directory matches nowhere/*');

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { guard, UsageError, type Git } from '../src/guard';
 
 /**
- * A module whose source changed has to record it: a version that moved, and a
+ * A project whose source changed has to record it: a version that moved, and a
  * changelog section carrying that version. Without the first, a client that
  * already has 0.1.0 compares versions, finds the same number, and never
  * fetches the fix. Without the second, the reasoning is gone by the time
@@ -56,12 +56,12 @@ function fakeGit(situation: {
 describe('guard', () => {
   const roots: string[] = [];
 
-  /** A repository on disk, one module per pair, each with a matching changelog. */
-  function build(...modules: Array<[string, string]>): string {
-    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'modules-')));
+  /** A repository on disk, one project per pair, each with a matching changelog. */
+  function build(...projects: Array<[string, string]>): string {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'projects-')));
     roots.push(root);
     fs.mkdirSync(path.join(root, 'plugins'), { recursive: true });
-    for (const [name, version] of modules) {
+    for (const [name, version] of projects) {
       write(root, `plugins/${name}/plugin.json`, `${JSON.stringify({ name, version })}\n`);
       write(root, `plugins/${name}/CHANGELOG.md`, `# ${name}\n\n## ${version}\n\nThe first release.\n`);
     }
@@ -74,12 +74,12 @@ describe('guard', () => {
     fs.writeFileSync(file, contents);
   }
 
-  /** What every case below shares: the modules live under plugins/. */
+  /** What every case below shares: the projects live under plugins/. */
   function check(root: string, options: Partial<Parameters<typeof guard>[0]> = {}) {
     return guard({
       root,
       base: 'origin/main',
-      modules: ['plugins/*'],
+      projects: ['plugins/*'],
       manifest: 'plugin.json',
       ...options,
     });
@@ -99,7 +99,7 @@ describe('guard', () => {
     expect(result).toEqual({ errors: [], released: [] });
   });
 
-  it('passes when a changed module was bumped', () => {
+  it('passes when a changed project was bumped', () => {
     const result = check(build(['docket', '0.2.0']), {
       git: fakeGit({ changed: ['docket'], versions: { docket: '0.1.0' } }),
     });
@@ -108,7 +108,7 @@ describe('guard', () => {
     expect(result.released).toEqual(['plugins/docket 0.1.0 -> 0.2.0']);
   });
 
-  it('catches a changed module whose version stood still', () => {
+  it('catches a changed project whose version stood still', () => {
     const result = check(build(['docket', '0.1.0']), {
       git: fakeGit({ changed: ['docket'], versions: { docket: '0.1.0' } }),
     });
@@ -126,7 +126,7 @@ describe('guard', () => {
     expect(result.errors[0]).toContain('still 0.1.0');
   });
 
-  it('asks nothing of a module that is new', () => {
+  it('asks nothing of a project that is new', () => {
     const result = check(build(['scaffold', '0.1.0']), {
       git: fakeGit({ changed: ['scaffold'], versions: {} }),
     });
@@ -135,7 +135,7 @@ describe('guard', () => {
     expect(result.released).toEqual(['plugins/scaffold is new, at 0.1.0']);
   });
 
-  it('leaves the other modules alone', () => {
+  it('leaves the other projects alone', () => {
     const result = check(build(['docket', '0.1.0'], ['scaffold', '2.3.4']), {
       git: fakeGit({
         changed: ['scaffold'],
@@ -155,7 +155,7 @@ describe('guard', () => {
     expect(result.errors[0]).toContain('cannot compare against origin/main');
   });
 
-  it('catches a bumped module whose changelog never mentions the version', () => {
+  it('catches a bumped project whose changelog never mentions the version', () => {
     const root = build(['docket', '0.2.0']);
     write(root, 'plugins/docket/CHANGELOG.md', '# docket\n\n## 0.1.0\n\nThe first release.\n');
 
@@ -168,7 +168,7 @@ describe('guard', () => {
     expect(result.errors[0]).toContain('no section for 0.2.0');
   });
 
-  it('catches a module with no changelog at all', () => {
+  it('catches a project with no changelog at all', () => {
     const root = build(['docket', '0.2.0']);
     fs.rmSync(path.join(root, 'plugins/docket/CHANGELOG.md'));
 
@@ -180,7 +180,7 @@ describe('guard', () => {
     expect(result.errors[0]).toContain('has no CHANGELOG.md');
   });
 
-  it('asks for a changelog entry from a new module too', () => {
+  it('asks for a changelog entry from a new project too', () => {
     const root = build(['scaffold', '0.1.0']);
     fs.rmSync(path.join(root, 'plugins/scaffold/CHANGELOG.md'));
 
@@ -234,11 +234,11 @@ describe('guard', () => {
   });
 });
 
-describe('which modules get checked', () => {
+describe('which projects get checked', () => {
   const roots: string[] = [];
 
   function repository(...directories: string[]): string {
-    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'modules-')));
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'projects-')));
     roots.push(root);
     for (const directory of directories) {
       fs.mkdirSync(path.join(root, directory), { recursive: true });
@@ -251,7 +251,7 @@ describe('which modules get checked', () => {
     return root;
   }
 
-  /** Every module looks changed, and every one was at 0.1.0 before. */
+  /** Every project looks changed, and every one was at 0.1.0 before. */
   function everythingChanged(): Git {
     return (_cwd, args) => {
       const ok = (stdout: string) => ({ status: 0, stdout, stderr: '' });
@@ -275,7 +275,7 @@ describe('which modules get checked', () => {
     }
   });
 
-  it('treats the repository itself as the module by default', () => {
+  it('treats the repository itself as the project by default', () => {
     const root = repository('.');
 
     const result = guard({ root, base: 'origin/main', git: everythingChanged() });
@@ -290,7 +290,7 @@ describe('which modules get checked', () => {
     const result = guard({
       root,
       base: 'origin/main',
-      modules: ['./*'],
+      projects: ['./*'],
       git: everythingChanged(),
     });
 
@@ -304,7 +304,7 @@ describe('which modules get checked', () => {
     const result = guard({
       root,
       base: 'origin/main',
-      modules: ['./*'],
+      projects: ['./*'],
       git: everythingChanged(),
     });
 
@@ -317,7 +317,7 @@ describe('which modules get checked', () => {
     const result = guard({
       root,
       base: 'origin/main',
-      modules: ['packages/*', 'tools/build'],
+      projects: ['packages/*', 'tools/build'],
       git: everythingChanged(),
     });
 
@@ -334,7 +334,7 @@ describe('which modules get checked', () => {
     const result = guard({
       root,
       base: 'origin/main',
-      modules: ['packages/*', 'packages/web'],
+      projects: ['packages/*', 'packages/web'],
       git: everythingChanged(),
     });
 
@@ -345,15 +345,15 @@ describe('which modules get checked', () => {
     const root = repository('one');
 
     expect(() =>
-      guard({ root, base: 'origin/main', modules: ['nowhere/*'], git: everythingChanged() }),
+      guard({ root, base: 'origin/main', projects: ['nowhere/*'], git: everythingChanged() }),
     ).toThrow(/no directory matches nowhere\/\*/);
   });
 
-  it('refuses a run with no modules named', () => {
+  it('refuses a run with no projects named', () => {
     const root = repository('one');
 
     expect(() =>
-      guard({ root, base: 'origin/main', modules: [], git: everythingChanged() }),
+      guard({ root, base: 'origin/main', projects: [], git: everythingChanged() }),
     ).toThrow(UsageError);
   });
 });
@@ -362,14 +362,14 @@ describe('which files count as a change', () => {
   const roots: string[] = [];
 
   function repository(): string {
-    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'modules-')));
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'projects-')));
     roots.push(root);
     fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ version: '0.1.0' })}\n`);
     fs.writeFileSync(path.join(root, 'CHANGELOG.md'), '## 0.1.0\n\nThe first release.\n');
     return root;
   }
 
-  /** The repository is one module, and these are the files that moved in it. */
+  /** The repository is one project, and these are the files that moved in it. */
   function touched(files: string[], untracked: string[] = []): Git {
     return (_cwd, args) => {
       const ok = (stdout: string) => ({ status: 0, stdout, stderr: '' });

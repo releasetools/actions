@@ -1,11 +1,11 @@
 import { pathPattern } from './glob';
 
 /**
- * Decides which changed files do not count as the module changing.
+ * Decides which changed files do not count as the project changing.
  *
  * A pattern matches the end of a path, on segment boundaries, so `README.md`
  * matches at every depth and `docs/README.md` only inside a `docs`. That is
- * what makes one entry enough for a file that appears once per module. Add
+ * what makes one entry enough for a file that appears once per project. Add
  * globs for the rest: `*.md` for a kind of file, `docs/**` for a subtree.
  *
  * Matching is case-insensitive unless the caller says otherwise, because
