@@ -50,7 +50,7 @@ describe('runCli', () => {
   }
 
   beforeEach(() => {
-    root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'marketplace-')));
+    root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plugins-')));
     git('init', '-b', 'main');
     git('config', 'user.email', 'test@example.invalid');
     git('config', 'user.name', 'Test');

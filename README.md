@@ -44,9 +44,10 @@ outputs, permissions, and behavior.
 
 ### `plugin-release`
 
-Fail a pull request when a plugin in a marketplace monorepo changed without
-declaring its release: its manifest version has to move, and its `CHANGELOG.md`
-has to open a section for the version it now claims.
+Fail a pull request when a plugin changed without declaring its release: its
+manifest version has to move, and its `CHANGELOG.md` has to open a section for
+the version it now claims. For a repository that holds several plugins side by
+side, each with its own version.
 
 ```yaml
 - uses: actions/checkout@v6

@@ -36,9 +36,9 @@ function fakeGit(situation: { changed?: string[]; versions?: Record<string, stri
 describe('checkRelease', () => {
   const roots: string[] = [];
 
-  /** A marketplace on disk, one plugin per pair, each with a matching changelog. */
+  /** A repository on disk, one plugin per pair, each with a matching changelog. */
   function build(...plugins: Array<[string, string]>): string {
-    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'marketplace-')));
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plugins-')));
     roots.push(root);
     fs.mkdirSync(path.join(root, 'plugins'), { recursive: true });
     for (const [name, version] of plugins) {

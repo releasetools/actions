@@ -4,8 +4,10 @@ Fail a pull request when a plugin changed without declaring its release. It
 runs as a GitHub Action on `pull_request`, and as a command a maintainer can
 run before pushing.
 
-A marketplace monorepo publishes from `main`, so an edit to a plugin is just a
-commit and the merge is the release. That leaves the diff as the only place to
+Use it where one repository holds several plugins side by side, each with its
+own version and changelog, and installs come straight off `main`. There is no
+build and no publish step to hang a check on: an edit to a plugin is just a
+commit, and the merge is the release. That leaves the diff as the only place to
 catch a plugin that shipped under its old version, which no client will fetch,
 or one that shipped with nothing written down about what changed.
 

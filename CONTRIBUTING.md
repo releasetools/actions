@@ -42,8 +42,8 @@ source, tests, dependencies, and CI configuration.
 
 The same run publishes `plugin-release`'s CLI to npm as
 `@releasetools/plugin-release`, at the version being released without its
-leading `v`, so a marketplace repository can hold the check as a devDependency
-and run it before pushing. Authentication is npm trusted publishing: the job's
+leading `v`, so a repository being checked can hold it as a devDependency and
+run it before pushing. Authentication is npm trusted publishing: the job's
 `id-token: write` permission is enough, and the workflow filename registered on
 npmjs.com is `release.yml`.
 
