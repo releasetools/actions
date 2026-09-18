@@ -18,7 +18,7 @@ export function run(): void {
       // override for the runs that are not one.
       base: core.getInput('base') || baseSha() || '',
       projects: core.getMultilineInput('projects'),
-      manifest: core.getInput('manifest') || undefined,
+      manifests: core.getMultilineInput('manifests'),
       changelog: core.getInput('changelog') || undefined,
       ignoreFiles: core.getMultilineInput('ignore-files'),
       // getBooleanInput throws on an empty value, which is what a caller who

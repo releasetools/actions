@@ -18,10 +18,14 @@ inputs:
     description: 'Newline-delimited directories to check, as paths or globs. "./" is the repository itself, "./*" every directory at the top, "packages/*" every one under packages. A pattern matching no directory fails the run rather than checking nothing.'
     required: false
     default: './'
-  manifest:
-    description: 'Manifest carrying the version, relative to a project directory.'
+  manifests:
+    description: 'Newline-delimited files that may declare the version, relative to a project directory, tried in order until one is there. The kind is read from the name: any .json takes its top-level "version", .toml the version of its package, project or tool.poetry table, .yaml and .yml a top-level "version:", .properties a "version=" line, and anything else is a file holding the version and nothing else. XML is refused rather than guessed at.'
     required: false
-    default: 'package.json'
+    default: |
+      package.json
+      pyproject.toml
+      Cargo.toml
+      VERSION
   changelog:
     description: 'Changelog, relative to a project directory.'
     required: false

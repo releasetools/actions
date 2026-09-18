@@ -47,7 +47,7 @@ describe('runCli', () => {
       },
     };
     const code = runCli(
-      ['--root', root, '--projects', 'plugins/*', '--manifest', 'plugin.json', ...argv],
+      ['--root', root, '--projects', 'plugins/*', '--manifests', 'plugin.json', ...argv],
       streams,
     );
     return { code, out, err };

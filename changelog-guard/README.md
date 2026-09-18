@@ -4,13 +4,12 @@ Fail a pull request when a project changed without recording it. It runs as a
 GitHub Action on `pull_request`, and as a command a maintainer can run before
 pushing.
 
-A project here is any directory with its own version: the repository itself, a
-package in a workspace, a plugin in a marketplace. Where a repository installs
-straight off `main` there is no build and no publish step to hang a check on.
-An edit is just a commit, and the merge is the release. That leaves the diff as
-the only place to catch a project that shipped under its old version, which no
-client will fetch, or one that shipped with nothing written down about what
-changed.
+A project here is any directory with its own version: the repository itself, or
+each package in a workspace. Where a repository installs straight off `main`
+there is no build and no publish step to hang a check on. An edit is just a
+commit, and the merge is the release. That leaves the diff as the only place to
+catch a project that shipped under its old version, which no client will fetch,
+or one that shipped with nothing written down about what changed.
 
 ## Quick start
 
@@ -35,7 +34,6 @@ For a repository of many, name them:
   if: github.event_name == 'pull_request'
   with:
     projects: packages/*
-    manifest: package.json
 ```
 
 Outside a pull request there is nothing to read, so `base` has to be set.
@@ -87,9 +85,9 @@ For every project, in path order:
 1. Ask git what changed under it against `base`, and what it holds that git has
    never seen. Drop the files `ignore-files` names. Nothing left, nothing to
    check.
-2. Read the version from the working tree's manifest.
-3. Read the manifest at `base`. Absent means the project is new, so no version
-   comparison is asked of it.
+2. Read the version from the first of `manifests` the project holds.
+3. Read that same file at `base`. Absent means the project is new, so no
+   version comparison is asked of it.
 4. Present means the working tree's version must be strictly greater. Equal or
    lower fails, and that project is not checked further.
 5. `CHANGELOG.md` must exist and must open a section for the version the
@@ -110,6 +108,23 @@ A line matching `^##\s+\[?v?<version>\]?(\s|$)`, anywhere in the file.
 | `## v0.2.0` | passes |
 | `## 0.2.0-rc1` | fails |
 | `### 0.2.0` | fails |
+
+### Where the version comes from
+
+`manifests` lists the files that may declare it, relative to a project, tried
+in order until one is there. The kind is read from the name, so a project names
+its file and nothing else:
+
+| file | where the version is |
+| --- | --- |
+| any `.json` | the top-level `version` |
+| any `.toml` | the `version` of its `package`, `project`, `tool.poetry` or `workspace.package` table, never a dependency's |
+| `.yaml`, `.yml` | a top-level `version:`, never an indented one |
+| `.properties` | a `version=` line, which is where Gradle keeps it |
+| anything else | the file is the version and nothing else, as `VERSION` holds it |
+
+XML is refused rather than read: a `<version>` in a `pom.xml` can be the
+project's or its parent's, and a wrong version is worse than a plain refusal.
 
 ### Comparing versions
 
@@ -148,7 +163,7 @@ A changed project still has to carry a changelog section for its new version:
 | --- | --- | --- |
 | `base` | the pull request's base | the ref to compare against. Read from the event on a pull request, required anywhere else |
 | `projects` | `./` | newline-delimited directories to check, as paths or globs |
-| `manifest` | `package.json` | the file holding `version`, relative to a project |
+| `manifests` | `package.json`, `pyproject.toml`, `Cargo.toml`, `VERSION` | newline-delimited files that may declare the version, first one found wins |
 | `changelog` | `CHANGELOG.md` | relative to a project |
 | `ignore-files` | `CHANGELOG.md`, `README.md`, `LICENSE` | newline-delimited files whose edits are not a change |
 | `case-sensitive` | `false` | match `ignore-files` exactly rather than ignoring case |

@@ -80,7 +80,7 @@ describe('guard', () => {
       root,
       base: 'origin/main',
       projects: ['plugins/*'],
-      manifest: 'plugin.json',
+      manifests: ['plugin.json'],
       ...options,
     });
   }
@@ -225,7 +225,7 @@ describe('guard', () => {
     expect(result.errors).toHaveLength(1);
   });
 
-  it('names a manifest it cannot read instead of stopping the run', () => {
+  it('names a project whose version it cannot find, and checks the rest', () => {
     const root = build(['docket', '0.1.0'], ['scaffold', '2.3.4']);
     fs.rmSync(path.join(root, 'plugins/docket/plugin.json'));
 
@@ -236,7 +236,9 @@ describe('guard', () => {
       }),
     });
 
-    expect(result.errors).toEqual(['plugins/docket/plugin.json is not there']);
+    expect(result.errors).toEqual([
+      'plugins/docket declares no version. Looked for plugin.json; name the file that holds it.',
+    ]);
     expect(result.released).toEqual(['plugins/scaffold 2.3.3 -> 2.3.4']);
   });
 

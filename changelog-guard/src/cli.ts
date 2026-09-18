@@ -11,7 +11,7 @@ const OPTIONS = {
   base: { type: 'string' },
   root: { type: 'string' },
   projects: { type: 'string', multiple: true },
-  manifest: { type: 'string' },
+  manifests: { type: 'string', multiple: true },
   changelog: { type: 'string' },
   'ignore-files': { type: 'string', multiple: true },
   'case-sensitive': { type: 'boolean' },
@@ -24,7 +24,8 @@ const USAGE = `Usage: changelog-guard --base <ref> [options]
   --projects <glob>      a directory to check, repeatable (default: ${DEFAULTS.projects.join(', ')}).
                         ./ is the repository itself, ./* every directory at
                         the top, packages/* every one under packages
-  --manifest <path>     relative to a project (default: ${DEFAULTS.manifest})
+  --manifests <path>    where a version is declared, repeatable, first one
+                        found wins (default: ${DEFAULTS.manifests.join(', ')})
   --changelog <path>    relative to a project (default: ${DEFAULTS.changelog})
   --ignore-files <glob> a file whose edits are not a change, repeatable
                         (default: ${DEFAULTS.ignoreFiles.join(', ')}). Matched
@@ -48,7 +49,7 @@ export function runCli(argv: string[], streams: Streams): number {
       root: values.root ?? process.cwd(),
       base: values.base ?? '',
       projects: values.projects,
-      manifest: values.manifest,
+      manifests: values.manifests,
       changelog: values.changelog,
       // `--ignore-files ''` is how a caller asks for every file to count, so
       // an empty value is a deliberate empty list rather than no answer.
