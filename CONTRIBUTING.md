@@ -47,6 +47,16 @@ run it before pushing. Authentication is npm trusted publishing: the job's
 `id-token: write` permission is enough, and the workflow filename registered on
 npmjs.com is `release.yml`.
 
+OIDC cannot create a package that does not exist, so a name's first version is
+published by hand and every later one by the workflow. Both assemble the same
+tree with the same script:
+
+```bash
+npm run package:npm -- --version 0.1.0
+node npm/plugin-release.js   # exits 2 with no --base, which is the smoke test
+npm publish npm --access public
+```
+
 To publish, dispatch `.github/workflows/release.yml` with a version matching
 `vMAJOR.MINOR.PATCH`. The workflow validates, tests, builds, publishes, and moves
 both tags.

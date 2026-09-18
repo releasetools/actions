@@ -159,48 +159,13 @@ jobs:
 
       # The same check as a devDependency, so a maintainer can run it before
       # pushing instead of hearing about it from CI. The package version is the
-      # release it was built from, with the leading v removed.
+      # release it was built from, with the leading v removed. The script is
+      # shared with a publish by hand, which is how a name's first version gets
+      # onto npm.
       - name: Stage the npm package
         env:
           VERSION: ${{ inputs.version }}
-        run: |
-          set -euo pipefail
-          mkdir -p npm
-          cp LICENSE npm/
-          cp plugin-release/README.md npm/
-          # ncc emits no shebang, and npm needs one on a bin.
-          {
-            printf '#!/usr/bin/env node\n'
-            cat plugin-release/dist-cli/index.js
-          } > npm/plugin-release.js
-          chmod +x npm/plugin-release.js
-          cat > npm/package.json <<EOF
-          {
-            "name": "@releasetools/plugin-release",
-            "version": "${VERSION#v}",
-            "description": "Fail a pull request when a plugin changed without declaring its release.",
-            "license": "Apache-2.0",
-            "repository": {
-              "type": "git",
-              "url": "git+https://github.com/releasetools/actions.git"
-            },
-            "homepage": "https://github.com/releasetools/actions/tree/main/plugin-release#readme",
-            "bugs": {
-              "url": "https://github.com/releasetools/actions/issues"
-            },
-            "bin": {
-              "plugin-release": "plugin-release.js"
-            },
-            "engines": {
-              "node": ">=20"
-            },
-            "files": [
-              "plugin-release.js",
-              "README.md",
-              "LICENSE"
-            ]
-          }
-          EOF
+        run: node scripts/package-npm.mjs --version "${VERSION#v}"
 
       # A bundle that cannot start is worth catching before it reaches the
       # registry, where a version can never be replaced.
@@ -218,15 +183,14 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
-      # Trusted publishing: npm detects the OIDC environment from the
-      # id-token permission above and authenticates without a secret. It needs
-      # npm 11.5.1 or newer, hence the upgrade, and it cannot create a package
-      # that does not exist yet, so the first publish of a name goes through
-      # NPM_TOKEN. npm prefers OIDC and falls back to the token.
+      # Trusted publishing: npm detects the OIDC environment from the id-token
+      # permission above and authenticates without a secret, so there is no
+      # token here to leak or rotate. It needs npm 11.5.1 or newer, hence the
+      # upgrade. A name's first version is published by hand, because OIDC
+      # cannot create a package that does not exist.
       - name: Publish the CLI to npm
         id: npm
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ inputs.version }}
         working-directory: npm
         run: |
