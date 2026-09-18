@@ -146,6 +146,31 @@ describe('guard, against a real repository', () => {
     expect(errors[0]?.message).toContain(`${path.basename(root)} changed but its version is still 0.1.0`);
   });
 
+  it('judges the fork point, not the tip a moving base branch has reached', () => {
+    write('plugins/scaffold/plugin.json', `${JSON.stringify({ version: '2.0.0' })}\n`);
+    write('plugins/scaffold/CHANGELOG.md', '## 2.0.0\n\nThe first release.\n');
+    write('plugins/scaffold/skills/x.md', '# x\n');
+    commit('a second project');
+
+    git('checkout', '-q', '-b', 'work');
+    write('plugins/docket/skills/docket/SKILL.md', '# skill\n\nA second line.\n');
+    project('0.2.0', '# docket\n\n## 0.2.0\n\nA second line.\n\n## 0.1.0\n\nFirst.\n');
+    commit('release docket 0.2.0');
+
+    // Somebody else moves main on, under a project this branch never touched.
+    git('checkout', '-q', 'main');
+    write('plugins/scaffold/skills/y.md', '# y\n');
+    write('plugins/scaffold/plugin.json', `${JSON.stringify({ version: '2.1.0' })}\n`);
+    write('plugins/scaffold/CHANGELOG.md', '## 2.1.0\n\nMore.\n\n## 2.0.0\n\nThe first release.\n');
+    commit('release scaffold 2.1.0');
+    git('checkout', '-q', 'work');
+
+    const result = check({ base: 'main' });
+
+    expect(result.errors).toEqual([]);
+    expect(result.released).toEqual(['plugins/docket 0.1.0 -> 0.2.0']);
+  });
+
   it('refuses a run with nothing to compare against', () => {
     expect(() => check({ base: '' })).toThrow(UsageError);
   });

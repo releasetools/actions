@@ -30,12 +30,10 @@ export const DEFAULTS = {
   manifests: ['package.json', 'pyproject.toml', 'Cargo.toml', 'VERSION'],
   changelog: 'CHANGELOG.md',
   /**
-   * Files whose edits are not a change to the project. The changelog is here
-   * because the entry a release writes lands inside the project, so counting
-   * it would ask for a version whose only change is the sentence describing
-   * it.
+   * Files whose edits are not a change to the project, on top of the ones a
+   * release writes, which are never counted whatever this says.
    */
-  ignoreFiles: ['CHANGELOG.md', 'README.md', 'LICENSE'],
+  ignoreFiles: ['README.md', 'LICENSE'],
 } as const;
 
 export interface CheckOptions {
@@ -47,7 +45,7 @@ export interface CheckOptions {
   projects?: readonly string[];
   /** Where the version is declared, relative to a project, first one found. */
   manifests?: readonly string[];
-  /** Changelog, relative to a project's directory. */
+  /** Changelog, relative to a project. Empty asks for no changelog at all. */
   changelog?: string;
   /** Files whose edits do not count as the project changing. */
   ignoreFiles?: readonly string[];
@@ -108,25 +106,51 @@ export function guard(options: CheckOptions): CheckResult {
   }
 
   const root = path.resolve(options.root);
-  const ignored = ignoreMatcher(ignoreFiles, caseSensitive);
+
+  /*
+   * The files a release writes never count as the change it records. A
+   * changelog entry and a version bump are how a project says what happened,
+   * so counting them would ask for a release whose only content is the
+   * sentence announcing it. They are read, and they decide the verdict; they
+   * just do not raise the question.
+   */
+  const written = [changelog, ...manifests].filter((name) => name.trim() !== '');
+  const ignored = ignoreMatcher([...written, ...ignoreFiles], caseSensitive);
+
+  // Where the pull request forked, which is the diff GitHub shows under Files
+  // changed. Against a branch tip instead, anything the base gained since the
+  // fork reads as this project's change, backwards.
+  const forked = git(root, ['merge-base', base, 'HEAD']);
+  const against = forked.status === 0 && forked.stdout.trim() !== '' ? forked.stdout.trim() : base;
 
   const released: string[] = [];
   const errors: Failure[] = [];
 
   for (const project of resolveProjects(root, projects)) {
-    const changed = changedFiles(git, root, base, project);
+    const changed = changedFiles(git, root, against, base, project);
     if (typeof changed === 'string') {
       errors.push({ rule: 'setup', message: changed });
       continue;
     }
-    if (!changed.some((file) => !ignored(file))) {
+    if (changed.length === 0) {
       continue;
     }
+
+    /*
+     * Work, as opposed to the files a release writes. A project with none of
+     * it is still judged when its version moved, because a version that moves
+     * is a release however little came with it, and is exactly where "bump it
+     * and write it up later" hides.
+     */
+    const material = changed.some((file) => !ignored(file));
 
     const manifestPath = manifests
       .map((candidate) => within(project, candidate))
       .find((candidate) => fs.existsSync(path.join(root, candidate)));
     if (manifestPath === undefined) {
+      if (!material) {
+        continue;
+      }
       errors.push({
         rule: 'setup',
         message:
@@ -140,39 +164,55 @@ export function guard(options: CheckOptions): CheckResult {
     try {
       now = versionFrom(manifestPath, fs.readFileSync(path.join(root, manifestPath), 'utf8'));
     } catch (err) {
+      if (!material) {
+        continue;
+      }
       errors.push({ rule: 'setup', message: `${manifestPath} ${message(err)}` });
       continue;
     }
 
-    const before = git(root, ['show', `${base}:${manifestPath}`]);
-    if (before.status !== 0) {
-      // Not there at the base commit, so the project is new and its first
-      // version is whatever it says.
-      released.push(`${project.label} is new, at ${now}`);
-    } else {
-      let was: string;
+    // Absent at the fork point means the project is new, and its first version
+    // is whatever it says.
+    const before = git(root, ['show', `${against}:${manifestPath}`]);
+    let was: string | null = null;
+    if (before.status === 0) {
       try {
         was = versionFrom(manifestPath, before.stdout);
       } catch (err) {
+        if (!material) {
+          continue;
+        }
         errors.push({ rule: 'setup', message: `${manifestPath} at ${base} ${message(err)}` });
         continue;
       }
-      if (compareVersions(now, was) <= 0) {
-        errors.push({
-          rule: 'version',
-          message:
-            `${project.label} changed but its version is still ${now}. Somebody has ${was} ` +
-            'installed, and a client compares versions to decide whether an update ' +
-            'exists, so bump it before merging.',
-        });
-        continue;
-      }
+    }
+
+    const moved = was === null || compareVersions(now, was) > 0;
+    if (!material && !moved) {
+      // Only the files a release writes moved, and no release came with them.
+      continue;
+    }
+
+    if (was === null) {
+      released.push(`${project.label} is new, at ${now}`);
+    } else if (!moved) {
+      errors.push({
+        rule: 'version',
+        message:
+          `${project.label} changed but its version is still ${now}. Somebody has ${was} ` +
+          'installed, and a client compares versions to decide whether an update ' +
+          'exists, so bump it before merging.',
+      });
+      continue;
+    } else {
       released.push(`${project.label} ${was} -> ${now}`);
     }
 
-    const complaint = changelogError(root, project, changelog, now);
-    if (complaint) {
-      errors.push({ rule: 'changelog', message: complaint });
+    if (changelog !== '') {
+      const complaint = changelogError(root, project, changelog, now);
+      if (complaint) {
+        errors.push({ rule: 'changelog', message: complaint });
+      }
     }
   }
 
@@ -189,12 +229,18 @@ export function guard(options: CheckOptions): CheckResult {
  * untracked until it is added, and a command that called that repository
  * clean would be worth nothing to the person running it before they push.
  */
-function changedFiles(git: Git, root: string, base: string, project: Project): string[] | string {
+function changedFiles(
+  git: Git,
+  root: string,
+  against: string,
+  named: string,
+  project: Project,
+): string[] | string {
   const pathspec = project.path === '' ? '.' : project.path;
 
-  const diff = git(root, ['diff', '--name-only', base, '--', pathspec]);
+  const diff = git(root, ['diff', '--name-only', against, '--', pathspec]);
   if (diff.status !== 0) {
-    return `cannot compare against ${base}: ${diff.stderr.trim()}`;
+    return `cannot compare against ${named}: ${diff.stderr.trim()}`;
   }
   const untracked = git(root, [
     'ls-files',

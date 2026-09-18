@@ -59,14 +59,16 @@ success and is not.
 
 For every project, in path order:
 
-1. Ask git what changed under it against `base`, and what it holds that git has
-   never seen. Drop the files `ignore-files` names. Nothing left, nothing to
-   check.
-2. Read the version from the first of `manifests` the project holds.
-3. Read that same file at `base`. Absent means the project is new, so no
-   version comparison is asked of it.
-4. Present means the working tree's version must be strictly greater. Equal or
-   lower fails, and that project is not checked further.
+1. Ask git what changed under it since the branch forked, and what it holds
+   that git has never seen. Nothing at all, nothing to check.
+2. Read the version from the first of `manifests` the project holds, and the
+   same file at the fork point. Absent there means the project is new, so no
+   comparison is asked of it.
+3. Set aside the files a release writes: the changelog, the manifests, and
+   whatever `ignore-files` names. If nothing else moved and the version did
+   not either, there is no release here and nothing to check.
+4. The version must be strictly greater than at the fork point. Equal or lower
+   fails, and that project is not checked further.
 5. `CHANGELOG.md` must exist and must open a section for the version the
    working tree now claims.
 
@@ -112,10 +114,16 @@ same.
 
 ### What does not count as a change
 
-`ignore-files` names the files a release writes anyway, so editing one of them
-alone asks for nothing. Without it, fixing a typo in a changelog would demand a
-version whose only change is the sentence describing the typo.
+A release writes two things into the project it releases: the changelog entry
+and the new version. Neither counts as the change being recorded, whatever
+`ignore-files` says, because counting them would ask for a release whose only
+content is the sentence announcing it.
 
+A version that moves is a release even when nothing else did, so a commit that
+bumps and writes nothing up is still caught. A manifest edit that moves no
+version, a dependency range or a script, asks for nothing.
+
+`ignore-files` adds to that list, and defaults to `README.md` and `LICENSE`.
 Each pattern is matched against the end of a path, on segment boundaries, so
 one entry covers a file that appears once per project:
 
@@ -129,20 +137,29 @@ one entry covers a file that appears once per project:
 `*` and `?` match inside one segment, `**` across them. Matching ignores case
 unless `case-sensitive` is set, because `README.md` and `ReadMe.md` are the
 same file to whoever wrote the pattern. Set the input empty to count every
-file.
+other file.
 
 A changed project still has to carry a changelog section for its new version:
-`ignore-files` decides what counts as changing, not what a release has to say.
+this decides what counts as changing, not what a release has to say.
+
+### A repository that keeps no changelog
+
+Set `changelog` empty. The version half of the rule stands on its own, and a
+changed project is asked to bump and nothing more.
+
+The reverse is not offered. A changelog check without the version is satisfied
+by an entry written a year ago, since nothing makes the section it looks for a
+new one.
 
 ## Input reference
 
 | input | default | |
 | --- | --- | --- |
-| `base` | the pull request's base | the ref to compare against. Read from the event on a pull request, required anywhere else |
+| `base` | the pull request's base | the ref to compare against, resolved to where the branch forked from it. Read from the event on a pull request, required anywhere else |
 | `projects` | `./` | newline-delimited directories to check, as paths or globs |
 | `manifests` | `package.json`, `pyproject.toml`, `Cargo.toml`, `VERSION` | newline-delimited files that may declare the version, first one found wins |
-| `changelog` | `CHANGELOG.md` | relative to a project |
-| `ignore-files` | `CHANGELOG.md`, `README.md`, `LICENSE` | newline-delimited files whose edits are not a change |
+| `changelog` | `CHANGELOG.md` | relative to a project. Empty asks for no changelog at all |
+| `ignore-files` | `README.md`, `LICENSE` | more files whose edits are not a change, on top of the changelog and the manifests |
 | `case-sensitive` | `false` | match `ignore-files` exactly rather than ignoring case |
 
 The action reports through `@actions/core`: one `info` line per project that

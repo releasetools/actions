@@ -11,7 +11,7 @@ branding:
 
 inputs:
   base:
-    description: 'Ref the working tree is compared against. On a pull request it is read from the event and nothing needs setting; anywhere else, name one. The checkout needs history reaching it, so use fetch-depth: 0.'
+    description: 'Ref the working tree is compared against. On a pull request it is read from the event and nothing needs setting; anywhere else, name one. The comparison is taken from where the branch forked, the diff GitHub shows under Files changed, so a base branch that moved on does not read as this branch changing things. The checkout needs history reaching the fork point, so use fetch-depth: 0.'
     required: false
     default: ''
   projects:
@@ -27,14 +27,13 @@ inputs:
       Cargo.toml
       VERSION
   changelog:
-    description: 'Changelog, relative to a project directory.'
+    description: 'Changelog, relative to a project directory. Set it empty for a repository that keeps none, which leaves the version half of the rule on its own.'
     required: false
     default: 'CHANGELOG.md'
   ignore-files:
-    description: 'Newline-delimited files whose edits do not count as the project changing. Each is matched against the end of a path, so "README.md" matches at every depth and "docs/README.md" only inside a docs. "*" and "?" match within a segment, "**" across them. Set it empty to count every file.'
+    description: 'Newline-delimited files whose edits do not count as the project changing, on top of the changelog and the manifests, which never count whatever this says. Each is matched against the end of a path, so "README.md" matches at every depth and "docs/README.md" only inside a docs. "*" and "?" match within a segment, "**" across them. Set it empty to count every other file.'
     required: false
     default: |
-      CHANGELOG.md
       README.md
       LICENSE
   case-sensitive:

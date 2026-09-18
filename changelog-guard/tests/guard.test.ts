@@ -475,10 +475,49 @@ describe('which files count as a change', () => {
     expect(result.errors).toHaveLength(1);
   });
 
-  it('counts every file when the caller passes no ignores', () => {
-    const result = check(repository(), touched(['CHANGELOG.md']), { ignoreFiles: [] });
+  it('counts every other file when the caller passes no ignores', () => {
+    const result = check(repository(), touched(['README.md']), { ignoreFiles: [] });
 
     expect(result.errors).toHaveLength(1);
+  });
+
+  it('never counts the files a release writes, whatever the ignores say', () => {
+    expect(
+      check(repository(), touched(['CHANGELOG.md', 'package.json']), { ignoreFiles: [] }),
+    ).toEqual({ errors: [], released: [] });
+  });
+
+  it('judges a version that moved on its own, with no other work', () => {
+    const root = repository();
+    fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ version: '0.2.0' })}\n`);
+
+    const result = check(root, touched(['package.json']));
+
+    expect(result.released).toEqual([`${path.basename(root)} 0.1.0 -> 0.2.0`]);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.rule).toBe('changelog');
+  });
+
+  it('asks nothing of a manifest edit that moved no version', () => {
+    expect(check(repository(), touched(['package.json']))).toEqual({ errors: [], released: [] });
+  });
+
+  it('asks for no changelog when the caller keeps none', () => {
+    const root = repository();
+    fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ version: '0.2.0' })}\n`);
+    fs.rmSync(path.join(root, 'CHANGELOG.md'));
+
+    const result = check(root, touched(['src/thing.ts']), { changelog: '' });
+
+    expect(result.errors).toEqual([]);
+    expect(result.released).toEqual([`${path.basename(root)} 0.1.0 -> 0.2.0`]);
+  });
+
+  it('still asks for the version when the caller keeps no changelog', () => {
+    const result = check(repository(), touched(['src/thing.ts']), { changelog: '' });
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.rule).toBe('version');
   });
 
   it('sees a file git has never been told about', () => {
