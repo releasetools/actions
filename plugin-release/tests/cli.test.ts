@@ -73,7 +73,7 @@ describe('runCli', () => {
   });
 
   it('fails a plugin edited without a bump', () => {
-    write('plugins/docket/README.md', '# docket\n\nA second line.\n');
+    write('plugins/docket/skills/docket/SKILL.md', '# docket\n\nA second skill line.\n');
     commit('edit the plugin');
 
     const { code, err } = run('--base', base);
@@ -84,7 +84,7 @@ describe('runCli', () => {
   });
 
   it('passes a plugin that declared its release', () => {
-    write('plugins/docket/README.md', '# docket\n\nA second line.\n');
+    write('plugins/docket/skills/docket/SKILL.md', '# docket\n\nA second skill line.\n');
     plugin('0.2.0', '# docket\n\n## 0.2.0 - 2026-09-12\n\nA second line.\n\n## 0.1.0\n\nThe first release.\n');
     commit('release 0.2.0');
 
@@ -102,6 +102,26 @@ describe('runCli', () => {
 
     expect(code).toBe(1);
     expect(err).toContain('no section for 0.2.0');
+  });
+
+  it('asks for nothing when a real commit only touched the README', () => {
+    write('plugins/docket/README.md', '# docket\n\nA second line.\n');
+    commit('fix a typo in the README');
+
+    const { code, out } = run('--base', base);
+
+    expect(code).toBe(0);
+    expect(out).toBe('No plugin changed\n');
+  });
+
+  it('counts the README when the caller passes no ignores', () => {
+    write('plugins/docket/README.md', '# docket\n\nA second line.\n');
+    commit('fix a typo in the README');
+
+    const { code, err } = run('--base', base, '--ignore', '');
+
+    expect(code).toBe(1);
+    expect(err).toContain('still 0.1.0');
   });
 
   it('prints usage and exits 2 without a base', () => {

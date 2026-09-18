@@ -13,14 +13,22 @@ import { checkRelease, UsageError, type Git } from '../src/check-release';
  * `git` is injected, so these describe situations rather than build
  * repositories. The integration test drives a real one.
  */
-function fakeGit(situation: { changed?: string[]; versions?: Record<string, string> }): Git {
+function fakeGit(situation: {
+  changed?: string[];
+  versions?: Record<string, string>;
+  files?: string[];
+}): Git {
   const changed = situation.changed ?? [];
   const versions = situation.versions ?? {};
+  const files = situation.files ?? ['skills/thing.md'];
   return (_cwd, args) => {
     const ok = (stdout: string) => ({ status: 0, stdout, stderr: '' });
     if (args[0] === 'diff') {
       const name = args.at(-1)!.split('/').at(-1)!;
-      return ok(changed.includes(name) ? `plugins/${name}/README.md\n` : '');
+      if (!changed.includes(name)) {
+        return ok('');
+      }
+      return ok(files.map((file) => `plugins/${name}/${file}`).join('\n') + '\n');
     }
     if (args[0] === 'show') {
       const name = args[1]!.split(':')[1]!.split('/')[1]!;
@@ -242,6 +250,65 @@ describe('checkRelease', () => {
       'plugins/docket/.claude-plugin/plugin.json is not there',
     ]);
     expect(result.released).toEqual(['scaffold 2.3.3 -> 2.3.4']);
+  });
+
+  it('asks for nothing when only the changelog changed', () => {
+    const result = checkRelease({
+      root: build(['docket', '0.1.0']),
+      base: 'origin/main',
+      git: fakeGit({
+        changed: ['docket'],
+        versions: { docket: '0.1.0' },
+        files: ['CHANGELOG.md'],
+      }),
+    });
+
+    expect(result).toEqual({ errors: [], released: [] });
+  });
+
+  it('asks for a release when a changelog edit arrives beside real work', () => {
+    const result = checkRelease({
+      root: build(['docket', '0.1.0']),
+      base: 'origin/main',
+      git: fakeGit({
+        changed: ['docket'],
+        versions: { docket: '0.1.0' },
+        files: ['CHANGELOG.md', 'skills/thing.md'],
+      }),
+    });
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('still 0.1.0');
+  });
+
+  it('counts every file when the caller passes no ignores', () => {
+    const result = checkRelease({
+      root: build(['docket', '0.1.0']),
+      base: 'origin/main',
+      ignore: [],
+      git: fakeGit({
+        changed: ['docket'],
+        versions: { docket: '0.1.0' },
+        files: ['CHANGELOG.md'],
+      }),
+    });
+
+    expect(result.errors).toHaveLength(1);
+  });
+
+  it('ignores a whole directory named without a slash', () => {
+    const result = checkRelease({
+      root: build(['docket', '0.1.0']),
+      base: 'origin/main',
+      ignore: ['docs'],
+      git: fakeGit({
+        changed: ['docket'],
+        versions: { docket: '0.1.0' },
+        files: ['docs/usage.md', 'docs/nested/more.md'],
+      }),
+    });
+
+    expect(result).toEqual({ errors: [], released: [] });
   });
 
   it('refuses a run with no base ref', () => {

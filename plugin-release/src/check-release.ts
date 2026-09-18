@@ -17,6 +17,12 @@ export const DEFAULTS = {
   pluginsDir: 'plugins',
   manifest: '.claude-plugin/plugin.json',
   changelog: 'CHANGELOG.md',
+  /**
+   * Files whose edits are not a release. The changelog is here because the
+   * entry a release writes lands inside the plugin, so counting it would ask
+   * for a version whose only change is the sentence describing it.
+   */
+  ignore: ['CHANGELOG.md', 'README.md', 'LICENSE'],
 } as const;
 
 export interface CheckOptions {
@@ -30,6 +36,13 @@ export interface CheckOptions {
   manifest?: string;
   /** Changelog, relative to a plugin's directory. */
   changelog?: string;
+  /**
+   * Paths whose changes do not count as the plugin changing, relative to a
+   * plugin's directory. A name with no slash matches that file, and a name
+   * matches everything under it when it is a directory. An empty list counts
+   * every file.
+   */
+  ignore?: readonly string[];
   git?: Git;
 }
 
@@ -60,6 +73,7 @@ export function checkRelease(options: CheckOptions): CheckResult {
     pluginsDir = DEFAULTS.pluginsDir,
     manifest = DEFAULTS.manifest,
     changelog = DEFAULTS.changelog,
+    ignore = DEFAULTS.ignore,
     git = spawnGit,
   } = options;
 
@@ -84,7 +98,7 @@ export function checkRelease(options: CheckOptions): CheckResult {
       errors.push(`cannot compare against ${base}: ${diff.stderr.trim()}`);
       continue;
     }
-    if (diff.stdout.trim() === '') {
+    if (!changedBeyond(diff.stdout, relative, ignore)) {
       continue;
     }
 
@@ -127,6 +141,22 @@ export function checkRelease(options: CheckOptions): CheckResult {
   }
 
   return { released, errors };
+}
+
+/**
+ * Whether the diff holds a file that is a release, rather than only files a
+ * release writes anyway.
+ *
+ * `git diff --name-only` prints paths from the repository root, so each one is
+ * cut back to the plugin before it is matched.
+ */
+function changedBeyond(diff: string, relative: string, ignore: readonly string[]): boolean {
+  return diff
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .map((file) => (file.startsWith(`${relative}/`) ? file.slice(relative.length + 1) : file))
+    .some((file) => !ignore.some((entry) => file === entry || file.startsWith(`${entry}/`)));
 }
 
 /** The complaint about a plugin's changelog, or null when it carries the version. */

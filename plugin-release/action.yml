@@ -25,6 +25,17 @@ inputs:
     description: 'Changelog, relative to a plugin directory.'
     required: false
     default: 'CHANGELOG.md'
+  ignore:
+    description: 'Newline-delimited paths, relative to a plugin directory, whose edits do not count as the plugin changing. A name matches that file, or everything under it when it is a directory. Set it empty to count every file. The changelog is here because the entry a release writes lands inside the plugin.'
+    required: false
+    default: |
+      CHANGELOG.md
+      README.md
+      LICENSE
+  skip-label:
+    description: 'Pull request label that turns the check off for that pull request. Set it empty to allow no such escape.'
+    required: false
+    default: 'no-release'
 
 runs:
   using: 'node24'

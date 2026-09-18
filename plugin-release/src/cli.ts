@@ -13,6 +13,7 @@ const OPTIONS = {
   'plugins-dir': { type: 'string' },
   manifest: { type: 'string' },
   changelog: { type: 'string' },
+  ignore: { type: 'string', multiple: true },
 } as const;
 
 const USAGE = `Usage: plugin-release --base <ref> [options]
@@ -22,6 +23,9 @@ const USAGE = `Usage: plugin-release --base <ref> [options]
   --plugins-dir <dir>   default: ${DEFAULTS.pluginsDir}
   --manifest <path>     default: ${DEFAULTS.manifest}
   --changelog <path>    default: ${DEFAULTS.changelog}
+  --ignore <path>       a file whose edits are not a release, repeatable
+                        (default: ${DEFAULTS.ignore.join(', ')}). Pass an
+                        empty one to count every file.
 `;
 
 /** Runs the check and returns the exit code: 0 pass, 1 failed, 2 usage. */
@@ -41,6 +45,9 @@ export function runCli(argv: string[], streams: Streams): number {
       pluginsDir: values['plugins-dir'],
       manifest: values.manifest,
       changelog: values.changelog,
+      // `--ignore ''` is how a caller asks for every file to count, so an
+      // empty value is a deliberate empty list rather than no answer.
+      ignore: values.ignore?.filter((entry) => entry.trim() !== ''),
     });
   } catch (err) {
     if (err instanceof UsageError) {
