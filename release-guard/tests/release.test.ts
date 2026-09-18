@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { guard, UsageError, type Git } from '../src/guard';
+import { guard, UsageError, type Git } from '../src/release';
 
 /**
  * A project whose source changed has to record it: a version that moved, and a

@@ -8,7 +8,7 @@ import { pullRequest } from './event';
  * that skipped it would have to read that repository's workflow to learn what
  * the label was called.
  */
-export const SKIP_LABEL = 'skip-changelog-guard';
+export const SKIP_LABEL = 'skip-release-guard';
 
 /** Whether this run is a pull request carrying the skip label. */
 export function skipRequested(): boolean {

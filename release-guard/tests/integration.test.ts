@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { guard, UsageError } from '../src/guard';
+import { guard, UsageError } from '../src/release';
 
 /**
  * The unit tests stub git. These drive a real repository, so the diff, the

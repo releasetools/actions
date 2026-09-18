@@ -1,4 +1,4 @@
-# `changelog-guard`
+# `release-guard`
 
 Fail a pull request when a project changed without recording it.
 
@@ -21,14 +21,14 @@ event:
     # The check compares this tree against the base branch, so it needs both.
     fetch-depth: 0
 
-- uses: releasetools/actions/changelog-guard@v0
+- uses: releasetools/actions/release-guard@v0
   if: github.event_name == 'pull_request'
 ```
 
 For a repository of many, name them:
 
 ```yaml
-- uses: releasetools/actions/changelog-guard@v0
+- uses: releasetools/actions/release-guard@v0
   if: github.event_name == 'pull_request'
   with:
     projects: packages/*
@@ -166,13 +166,13 @@ The action reports through `@actions/core`: one `info` line per project that
 recorded its new version, and one `error` annotation per project that did not,
 titled by the half of the rule that failed. `Version not bumped` and `Changelog
 not updated` are separate titles so a reviewer can see which one fired without
-reading the message, and `Changelog guard could not run` is neither: a base ref
+reading the message, and `Release guard could not run` is neither: a base ref
 git cannot reach, a `projects` pattern matching nothing, or a manifest that
 declares no version.
 
 ### Turning it off for one pull request
 
-Label the pull request `skip-changelog-guard`. The action posts a notice saying
+Label the pull request `skip-release-guard`. The action posts a notice saying
 it skipped and passes, so a check somebody turned off is visible on the pull
 request that turned it off.
 
@@ -194,7 +194,7 @@ Every changed project recorded its new version
 
 A project is named by its path, or by the repository's own directory name when
 it is the repository. Every failure becomes an `error` annotation, and the step
-fails once with `Changelog check failed. See the annotations.`
+fails once with `Release check failed. See the annotations.`
 
 A run that could not start at all fails the same way with what was wrong:
 nothing to compare against, or a `projects` pattern matching no directory.

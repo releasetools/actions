@@ -10,8 +10,8 @@
   },
   "scripts": {
     "build:signed-push": "ncc build signed-push/src/index.ts -o signed-push/dist --license licenses.txt --minify",
-    "build:changelog-guard": "ncc build changelog-guard/src/index.ts -o changelog-guard/dist --license licenses.txt --minify",
-    "build": "npm run build:signed-push && npm run build:changelog-guard",
+    "build:release-guard": "ncc build release-guard/src/index.ts -o release-guard/dist --license licenses.txt --minify",
+    "build": "npm run build:signed-push && npm run build:release-guard",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit"

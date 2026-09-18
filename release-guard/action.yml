@@ -1,4 +1,4 @@
-name: 'Changelog guard'
+name: 'Release guard'
 description: >-
   Fail a pull request when a project changed without recording it. Every
   project whose source changed against the base ref must carry a higher

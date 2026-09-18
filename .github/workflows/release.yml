@@ -101,7 +101,7 @@ jobs:
           set -euo pipefail
           mkdir -p stage
           cp LICENSE stage/
-          for action in signed-push changelog-guard; do
+          for action in signed-push release-guard; do
             mkdir -p "stage/$action"
             cp "$action/action.yml" "stage/$action/"
             cp "$action/README.md" "stage/$action/"

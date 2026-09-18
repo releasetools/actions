@@ -1,13 +1,13 @@
 import * as core from '@actions/core';
 import { baseSha } from './event';
-import { guard, type Rule } from './guard';
+import { guard, type Rule } from './release';
 import { SKIP_LABEL, skipRequested } from './skip-label';
 
 /** What each half of the rule calls itself on the pull request. */
 const TITLES: Record<Rule, string> = {
   version: 'Version not bumped',
   changelog: 'Changelog not updated',
-  setup: 'Changelog guard could not run',
+  setup: 'Release guard could not run',
 };
 
 export function run(): void {
@@ -15,7 +15,7 @@ export function run(): void {
     if (skipRequested()) {
       // A notice rather than a log line: a check somebody turned off should
       // be visible on the pull request that turned it off.
-      core.notice(`Changelog check skipped: this pull request is labelled ${SKIP_LABEL}.`);
+      core.notice(`Release check skipped: this pull request is labelled ${SKIP_LABEL}.`);
       return;
     }
 
@@ -47,7 +47,7 @@ export function run(): void {
       for (const { rule, message } of errors) {
         core.error(message, { title: TITLES[rule] });
       }
-      core.setFailed('Changelog check failed. See the annotations.');
+      core.setFailed('Release check failed. See the annotations.');
       return;
     }
 

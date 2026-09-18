@@ -42,7 +42,7 @@ workflow.
 See the [`signed-push` guide](signed-push/) for mirroring, upserts, inputs,
 outputs, permissions, and behavior.
 
-### `changelog-guard`
+### `release-guard`
 
 Fail a pull request when a project changed without recording it: its manifest
 version has to move, and its `CHANGELOG.md` has to open a section for the
@@ -55,7 +55,7 @@ repository itself to every package in a workspace.
     # The check compares this tree against the base branch, so it needs both.
     fetch-depth: 0
 
-- uses: releasetools/actions/changelog-guard@v0
+- uses: releasetools/actions/release-guard@v0
   if: github.event_name == 'pull_request'
   with:
     # Omit for a repository that is one versioned thing.
@@ -70,7 +70,7 @@ reads a version out of `package.json`, `pyproject.toml`, `Cargo.toml`, a
 `VERSION` file or whatever else the project names, and it counts files that are
 not committed yet as well as the diff.
 
-See the [`changelog-guard` guide](changelog-guard/) for project globs, the rule,
+See the [`release-guard` guide](release-guard/) for project globs, the rule,
 the inputs, and the exit codes.
 
 More actions are planned for common cross-workflow release patterns.
