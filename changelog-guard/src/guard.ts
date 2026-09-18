@@ -217,10 +217,15 @@ function changelogError(
   );
 }
 
-/** Whether a changelog opens a section for this version, dated or bare. */
+/**
+ * Whether a changelog opens a section for this version.
+ *
+ * Dated or bare, with or without a `v`, and with or without the brackets Keep
+ * a Changelog puts round a version so it can be linked.
+ */
 function carries(text: string, version: string): boolean {
   const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`^##\\s+v?${escaped}(\\s|$)`, 'm').test(text);
+  return new RegExp(`^##\\s+\\[?v?${escaped}\\]?(\\s|$)`, 'm').test(text);
 }
 
 /** The version a manifest declares. */

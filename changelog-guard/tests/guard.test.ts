@@ -203,6 +203,17 @@ describe('guard', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('takes the brackets Keep a Changelog puts round a version', () => {
+    const root = build(['docket', '0.2.0']);
+    write(root, 'plugins/docket/CHANGELOG.md', '# docket\n\n## [0.2.0] - 2026-09-18\n\nWhat changed.\n');
+
+    const result = check(root, {
+      git: fakeGit({ changed: ['docket'], versions: { docket: '0.1.0' } }),
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('does not read 0.2.0 out of 0.2.0-rc1', () => {
     const root = build(['docket', '0.2.0']);
     write(root, 'plugins/docket/CHANGELOG.md', '# docket\n\n## 0.2.0-rc1\n\nNot the release.\n');

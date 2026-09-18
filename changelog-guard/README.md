@@ -100,12 +100,13 @@ two different failures, reported differently.
 
 ### What counts as a section
 
-A line matching `^##\s+v?<version>(\s|$)`, anywhere in the file.
+A line matching `^##\s+\[?v?<version>\]?(\s|$)`, anywhere in the file.
 
 | heading | against version `0.2.0` |
 | --- | --- |
 | `## 0.2.0` | passes |
 | `## 0.2.0 - 2026-09-11` | passes, which is what the release-notes plugin writes |
+| `## [0.2.0] - 2026-09-11` | passes, which is what Keep a Changelog writes |
 | `## v0.2.0` | passes |
 | `## 0.2.0-rc1` | fails |
 | `### 0.2.0` | fails |
