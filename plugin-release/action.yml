@@ -32,10 +32,6 @@ inputs:
       CHANGELOG.md
       README.md
       LICENSE
-  skip-label:
-    description: 'Pull request label that turns the check off for that pull request. Set it empty to allow no such escape.'
-    required: false
-    default: 'no-release'
 
 runs:
   using: 'node24'

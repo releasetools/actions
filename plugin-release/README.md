@@ -113,16 +113,22 @@ changed plugin still has to carry a changelog section for its new version:
 | `manifest` | `.claude-plugin/plugin.json` | the file holding `version`, relative to a plugin's directory |
 | `changelog` | `CHANGELOG.md` | relative to a plugin's directory |
 | `ignore` | `CHANGELOG.md`, `README.md`, `LICENSE` | newline-delimited paths whose edits are not a release |
-| `skip-label` | `no-release` | a pull request carrying this label is not checked |
 
 The action reports through `@actions/core`: one `info` line per plugin that
-declared a release, one `error` annotation per plugin that did not. A pull
-request labelled `no-release` gets a `notice` saying the check was skipped, so
-turning it off is visible on the pull request that turned it off. Set
-`skip-label` empty to allow no such escape.
+declared a release, one `error` annotation per plugin that did not.
 
-The CLI takes `--ignore`, repeatable, and has no `skip-label`: there is no pull
-request to carry one.
+### Turning it off for one pull request
+
+Label the pull request `skip-changelog`. The action posts a notice saying it
+skipped and passes, so a check somebody turned off is visible on the pull
+request that turned it off.
+
+The label is one fixed name rather than an input. A configurable escape hatch
+is a different escape hatch in every repository, and a reviewer looking at a
+pull request that skipped the check would have to read that repository's
+workflow to learn what the label was called.
+
+The CLI has no equivalent: there is no pull request to carry a label.
 
 ## Output and exit codes
 

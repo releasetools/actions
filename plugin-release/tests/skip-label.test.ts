@@ -2,35 +2,31 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { carriesLabel, pullRequestLabels } from '../src/skip-label';
+import { SKIP_LABEL, carriesLabel, skipRequested } from '../src/skip-label';
 
 describe('carriesLabel', () => {
   it('finds the label among the payload objects', () => {
-    expect(carriesLabel([{ name: 'bug' }, { name: 'no-release' }], 'no-release')).toBe(true);
+    expect(carriesLabel([{ name: 'bug' }, { name: SKIP_LABEL }])).toBe(true);
   });
 
   it('is false when the pull request carries other labels', () => {
-    expect(carriesLabel([{ name: 'bug' }], 'no-release')).toBe(false);
+    expect(carriesLabel([{ name: 'bug' }])).toBe(false);
   });
 
   it('is false when there is no pull request to read labels from', () => {
-    expect(carriesLabel(undefined, 'no-release')).toBe(false);
-  });
-
-  it('never skips on an empty label, whatever the pull request carries', () => {
-    expect(carriesLabel([{ name: '' }, { name: 'bug' }], '')).toBe(false);
+    expect(carriesLabel(undefined)).toBe(false);
   });
 
   it('accepts bare strings, since a hand-built payload is somebody else’s shape', () => {
-    expect(carriesLabel(['no-release'], 'no-release')).toBe(true);
+    expect(carriesLabel([SKIP_LABEL])).toBe(true);
   });
 
   it('ignores an entry that carries no name', () => {
-    expect(carriesLabel([null, 42, { colour: 'red' }], 'no-release')).toBe(false);
+    expect(carriesLabel([null, 42, { colour: 'red' }])).toBe(false);
   });
 });
 
-describe('pullRequestLabels', () => {
+describe('skipRequested', () => {
   const written: string[] = [];
 
   function event(payload: string): void {
@@ -47,27 +43,33 @@ describe('pullRequestLabels', () => {
     }
   });
 
-  it('reads the labels out of the event file', () => {
-    event(JSON.stringify({ pull_request: { labels: [{ name: 'no-release' }] } }));
+  it('skips a pull request carrying the label', () => {
+    event(JSON.stringify({ pull_request: { labels: [{ name: SKIP_LABEL }] } }));
 
-    expect(pullRequestLabels()).toEqual([{ name: 'no-release' }]);
+    expect(skipRequested()).toBe(true);
   });
 
-  it('has nothing to report on an event that is not a pull request', () => {
+  it('checks a pull request carrying other labels', () => {
+    event(JSON.stringify({ pull_request: { labels: [{ name: 'bug' }] } }));
+
+    expect(skipRequested()).toBe(false);
+  });
+
+  it('checks an event that is not a pull request', () => {
     event(JSON.stringify({ ref: 'refs/heads/main' }));
 
-    expect(pullRequestLabels()).toBeUndefined();
+    expect(skipRequested()).toBe(false);
   });
 
-  it('has nothing to report when the run is not in Actions', () => {
+  it('checks a run that is not in Actions at all', () => {
     delete process.env['GITHUB_EVENT_PATH'];
 
-    expect(pullRequestLabels()).toBeUndefined();
+    expect(skipRequested()).toBe(false);
   });
 
-  it('runs the check rather than throwing on an unreadable event file', () => {
+  it('checks rather than throwing on an unreadable event file', () => {
     event('{ not json');
 
-    expect(pullRequestLabels()).toBeUndefined();
+    expect(skipRequested()).toBe(false);
   });
 });

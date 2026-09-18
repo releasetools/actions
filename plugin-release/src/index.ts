@@ -1,14 +1,13 @@
 import * as core from '@actions/core';
 import { checkRelease } from './check-release';
-import { carriesLabel, pullRequestLabels } from './skip-label';
+import { SKIP_LABEL, skipRequested } from './skip-label';
 
 export function run(): void {
   try {
-    const skipLabel = core.getInput('skip-label');
-    if (carriesLabel(pullRequestLabels(), skipLabel)) {
+    if (skipRequested()) {
       // A notice rather than a log line: a check somebody turned off should
       // be visible on the pull request that turned it off.
-      core.notice(`Release check skipped: this pull request is labelled ${skipLabel}.`);
+      core.notice(`Release check skipped: this pull request is labelled ${SKIP_LABEL}.`);
       return;
     }
 
