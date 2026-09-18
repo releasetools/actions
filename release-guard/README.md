@@ -25,13 +25,15 @@ event:
   if: github.event_name == 'pull_request'
 ```
 
-For a repository of many, name them:
+That asks each project for a version that moved. For a repository of many, and
+for a changelog to go with it:
 
 ```yaml
 - uses: releasetools/actions/release-guard@v0
   if: github.event_name == 'pull_request'
   with:
     projects: packages/*
+    check-changelog: CHANGELOG.md
 ```
 
 Outside a pull request there is nothing to read, so `base` has to be set.
@@ -54,6 +56,13 @@ Patterns expand a segment at a time rather than by walking the repository, so
 naming a directory costs a read of its parent. A pattern that matches no
 directory fails the run: checking nothing is the one outcome that looks like
 success and is not.
+
+A directory only counts as a project if it holds one of the `manifests`. Naming
+one that does not is an error, because the name was a claim; a glob that turns
+up one walks past it, because a glob is a search, and `./*` over a repository
+with a `docs/` has not found anything wrong. So `packages/*` reads as "every
+package under packages", and `packages/web` as "this, and it had better be
+one".
 
 ## The rule
 
@@ -91,8 +100,17 @@ A line matching `^##\s+\[?v?<version>\]?(\s|$)`, anywhere in the file.
 ### Where the version comes from
 
 `manifests` lists the files that may declare it, relative to a project, tried
-in order until one is there. The kind is read from the name, so a project names
-its file and nothing else:
+in order until one is there. It is a list of candidates for each project, not a
+set of files each project must have: a repository of a Rust crate beside a
+Python package names both, and each project uses whichever it holds. The first
+one found wins, so a project holding two is read from whichever comes first in
+the list, and the other is never read.
+
+The whole list is excluded from change detection, not only the one that won, so
+a project that carries a `package.json` it does not release from is not made to
+release by an edit to it.
+
+The kind is read from the name, so a project names its file and nothing else:
 
 | file | where the version is |
 | --- | --- |
@@ -142,10 +160,12 @@ other file.
 A changed project still has to carry a changelog section for its new version:
 this decides what counts as changing, not what a release has to say.
 
-### A repository that keeps no changelog
+### Asking for a changelog
 
-Set `changelog` empty. The version half of the rule stands on its own, and a
-changed project is asked to bump and nothing more.
+`check-changelog` names the file, usually `CHANGELOG.md`. Empty, which is the
+default, asks for none, and the version half of the rule stands on its own.
+Most repositories keep no changelog per project, and a check that fails every
+one of them on the day it is installed is a check nobody installs twice.
 
 The reverse is not offered. A changelog check without the version is satisfied
 by an entry written a year ago, since nothing makes the section it looks for a
@@ -158,7 +178,7 @@ new one.
 | `base` | the pull request's base | the ref to compare against, resolved to where the branch forked from it. Read from the event on a pull request, required anywhere else |
 | `projects` | `./` | newline-delimited directories to check, as paths or globs |
 | `manifests` | `package.json`, `pyproject.toml`, `Cargo.toml`, `VERSION` | newline-delimited files that may declare the version, first one found wins |
-| `changelog` | `CHANGELOG.md` | relative to a project. Empty asks for no changelog at all |
+| `check-changelog` | none | the changelog to check, relative to a project. Empty asks for none |
 | `ignore-files` | `README.md`, `LICENSE` | more files whose edits are not a change, on top of the changelog and the manifests |
 | `case-sensitive` | `false` | match `ignore-files` exactly rather than ignoring case |
 

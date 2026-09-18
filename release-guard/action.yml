@@ -1,9 +1,9 @@
 name: 'Release guard'
 description: >-
-  Fail a pull request when a project changed without recording it. Every
-  project whose source changed against the base ref must carry a higher
-  manifest version, and its CHANGELOG.md must open a section for the
-  version it now claims.
+  Fail a pull request when a project changed without recording a
+  release. Every project whose source changed since the branch forked
+  must carry a higher manifest version, and, where check-changelog names
+  one, a changelog section for the version it now claims.
 author: 'releasetools'
 branding:
   icon: 'check-square'
@@ -26,14 +26,15 @@ inputs:
       pyproject.toml
       Cargo.toml
       VERSION
-  changelog:
-    description: 'Changelog, relative to a project directory. Set it empty for a repository that keeps none, which leaves the version half of the rule on its own.'
+  check-changelog:
+    description: 'Changelog to check, relative to a project directory, usually CHANGELOG.md. Empty, the default, asks for none, and the version half of the rule stands on its own.'
     required: false
-    default: 'CHANGELOG.md'
+    default: ''
   ignore-files:
-    description: 'Newline-delimited files whose edits do not count as the project changing, on top of the changelog and the manifests, which never count whatever this says. Each is matched against the end of a path, so "README.md" matches at every depth and "docs/README.md" only inside a docs. "*" and "?" match within a segment, "**" across them. Set it empty to count every other file.'
+    description: 'Newline-delimited files whose edits do not count as the project changing, on top of the checked changelog and the manifests, which never count whatever this says. Each is matched against the end of a path, so "README.md" matches at every depth and "docs/README.md" only inside a docs. "*" and "?" match within a segment, "**" across them. Set it empty to count every other file.'
     required: false
     default: |
+      CHANGELOG.md
       README.md
       LICENSE
   case-sensitive:

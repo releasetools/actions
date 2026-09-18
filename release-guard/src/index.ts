@@ -26,9 +26,9 @@ export function run(): void {
       base: core.getInput('base') || baseSha() || '',
       projects: core.getMultilineInput('projects'),
       manifests: core.getMultilineInput('manifests'),
-      // Empty is a deliberate 'this project keeps no changelog', not an absent
-      // answer, so it goes through as it stands.
-      changelog: core.getInput('changelog'),
+      // Empty is 'ask for no changelog', which is the default, so it goes
+      // through as it stands rather than falling back to a name.
+      checkChangelog: core.getInput('check-changelog'),
       ignoreFiles: core.getMultilineInput('ignore-files'),
       // getBooleanInput throws on an empty value, which is what a caller who
       // wrote `case-sensitive: ''` gets. Read it as false and keep the

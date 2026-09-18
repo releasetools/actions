@@ -28,12 +28,18 @@ export const DEFAULTS = {
    * that keeps its version somewhere else names that file and nothing more.
    */
   manifests: ['package.json', 'pyproject.toml', 'Cargo.toml', 'VERSION'],
-  changelog: 'CHANGELOG.md',
+  /**
+   * No changelog is asked for until one is named. Most repositories keep none
+   * per project, and a check that fails every one of them on the day it is
+   * installed is a check nobody installs twice.
+   */
+  checkChangelog: '',
   /**
    * Files whose edits are not a change to the project, on top of the ones a
-   * release writes, which are never counted whatever this says.
+   * release writes, which are never counted whatever this says. CHANGELOG.md
+   * is here for the repository that keeps one without asking this to check it.
    */
-  ignoreFiles: ['README.md', 'LICENSE'],
+  ignoreFiles: ['CHANGELOG.md', 'README.md', 'LICENSE'],
 } as const;
 
 export interface CheckOptions {
@@ -45,8 +51,8 @@ export interface CheckOptions {
   projects?: readonly string[];
   /** Where the version is declared, relative to a project, first one found. */
   manifests?: readonly string[];
-  /** Changelog, relative to a project. Empty asks for no changelog at all. */
-  changelog?: string;
+  /** Changelog to check, relative to a project. Empty asks for none. */
+  checkChangelog?: string;
   /** Files whose edits do not count as the project changing. */
   ignoreFiles?: readonly string[];
   /** Whether those patterns are matched case-sensitively. */
@@ -92,7 +98,7 @@ export function guard(options: CheckOptions): CheckResult {
     base,
     projects = DEFAULTS.projects,
     manifests = DEFAULTS.manifests,
-    changelog = DEFAULTS.changelog,
+    checkChangelog = DEFAULTS.checkChangelog,
     ignoreFiles = DEFAULTS.ignoreFiles,
     caseSensitive = false,
     git = spawnGit,
@@ -114,7 +120,7 @@ export function guard(options: CheckOptions): CheckResult {
    * sentence announcing it. They are read, and they decide the verdict; they
    * just do not raise the question.
    */
-  const written = [changelog, ...manifests].filter((name) => name.trim() !== '');
+  const written = [checkChangelog, ...manifests].filter((name) => name.trim() !== '');
   const ignored = ignoreMatcher([...written, ...ignoreFiles], caseSensitive);
 
   // Where the pull request forked, which is the diff GitHub shows under Files
@@ -127,6 +133,15 @@ export function guard(options: CheckOptions): CheckResult {
   const errors: Failure[] = [];
 
   for (const project of resolveProjects(root, projects)) {
+    const manifestPath = manifests
+      .map((candidate) => within(project, candidate))
+      .find((candidate) => fs.existsSync(path.join(root, candidate)));
+    if (manifestPath === undefined && !project.named) {
+      // A glob turned up a directory that declares no version, so it is a
+      // directory rather than a project. `./*` over a repository is a search.
+      continue;
+    }
+
     const changed = changedFiles(git, root, against, base, project);
     if (typeof changed === 'string') {
       errors.push({ rule: 'setup', message: changed });
@@ -144,9 +159,6 @@ export function guard(options: CheckOptions): CheckResult {
      */
     const material = changed.some((file) => !ignored(file));
 
-    const manifestPath = manifests
-      .map((candidate) => within(project, candidate))
-      .find((candidate) => fs.existsSync(path.join(root, candidate)));
     if (manifestPath === undefined) {
       if (!material) {
         continue;
@@ -208,8 +220,8 @@ export function guard(options: CheckOptions): CheckResult {
       released.push(`${project.label} ${was} -> ${now}`);
     }
 
-    if (changelog !== '') {
-      const complaint = changelogError(root, project, changelog, now);
+    if (checkChangelog !== '') {
+      const complaint = changelogError(root, project, checkChangelog, now);
       if (complaint) {
         errors.push({ rule: 'changelog', message: complaint });
       }

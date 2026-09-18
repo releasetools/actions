@@ -40,6 +40,7 @@ describe('guard, against a real repository', () => {
       base,
       projects: ['plugins/*'],
       manifests: ['plugin.json'],
+      checkChangelog: 'CHANGELOG.md',
       ...options,
     });
   }

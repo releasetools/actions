@@ -11,6 +11,14 @@ export interface Project {
   label: string;
   /** Absolute directory. */
   directory: string;
+  /**
+   * Whether a pattern named this directory rather than turning it up.
+   *
+   * A name is a claim that the directory is a project, so one that declares no
+   * version is a mistake worth reporting. A glob is a search, and a search
+   * that walks past a docs directory has not found anything wrong.
+   */
+  named: boolean;
 }
 
 /**
@@ -31,23 +39,25 @@ export function resolveProjects(root: string, patterns: readonly string[]): Proj
     throw new UsageError('no project to check; name one, or use ./ for the repository itself');
   }
 
-  const found = new Set<string>();
+  const found = new Map<string, boolean>();
   for (const pattern of wanted) {
     const matches = expand(root, pattern);
     if (matches.length === 0) {
       throw new UsageError(`no directory matches ${pattern}`);
     }
+    const named = !isGlob(pattern);
     for (const match of matches) {
-      found.add(match);
+      found.set(match, (found.get(match) ?? false) || named);
     }
   }
 
-  return [...found]
+  return [...found.keys()]
     .sort()
     .map((relative) => ({
       path: relative,
       label: relative === '' ? path.basename(root) : relative,
       directory: relative === '' ? root : path.join(root, relative),
+      named: found.get(relative) ?? false,
     }));
 }
 

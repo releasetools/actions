@@ -81,6 +81,7 @@ describe('guard', () => {
       base: 'origin/main',
       projects: ['plugins/*'],
       manifests: ['plugin.json'],
+      checkChangelog: 'CHANGELOG.md',
       ...options,
     });
   }
@@ -225,11 +226,27 @@ describe('guard', () => {
     expect(result.errors).toHaveLength(1);
   });
 
-  it('names a project whose version it cannot find, and checks the rest', () => {
+  it('walks past a directory a glob turned up that declares no version', () => {
     const root = build(['docket', '0.1.0'], ['scaffold', '2.3.4']);
     fs.rmSync(path.join(root, 'plugins/docket/plugin.json'));
 
     const result = check(root, {
+      git: fakeGit({
+        changed: ['docket', 'scaffold'],
+        versions: { docket: '0.1.0', scaffold: '2.3.3' },
+      }),
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.released).toEqual(['plugins/scaffold 2.3.3 -> 2.3.4']);
+  });
+
+  it('names a project it was told about that declares no version', () => {
+    const root = build(['docket', '0.1.0'], ['scaffold', '2.3.4']);
+    fs.rmSync(path.join(root, 'plugins/docket/plugin.json'));
+
+    const result = check(root, {
+      projects: ['plugins/docket', 'plugins/scaffold'],
       git: fakeGit({
         changed: ['docket', 'scaffold'],
         versions: { docket: '0.1.0', scaffold: '2.3.3' },
@@ -244,20 +261,6 @@ describe('guard', () => {
       },
     ]);
     expect(result.released).toEqual(['plugins/scaffold 2.3.3 -> 2.3.4']);
-  });
-
-  it('names which half of the rule each failure came from', () => {
-    const root = build(['docket', '0.1.0'], ['scaffold', '2.3.4']);
-    write(root, 'plugins/scaffold/CHANGELOG.md', '# scaffold\n\n## 2.3.3\n\nThe one before.\n');
-
-    const result = check(root, {
-      git: fakeGit({
-        changed: ['docket', 'scaffold'],
-        versions: { docket: '0.1.0', scaffold: '2.3.3' },
-      }),
-    });
-
-    expect(result.errors.map((failure) => failure.rule)).toEqual(['version', 'changelog']);
   });
 
   it('refuses a run with no base ref', () => {
@@ -418,7 +421,7 @@ describe('which files count as a change', () => {
   }
 
   function check(root: string, git: Git, options: Record<string, unknown> = {}) {
-    return guard({ root, base: 'origin/main', git, ...options });
+    return guard({ root, base: 'origin/main', git, checkChangelog: 'CHANGELOG.md', ...options });
   }
 
   afterEach(() => {
@@ -502,19 +505,30 @@ describe('which files count as a change', () => {
     expect(check(repository(), touched(['package.json']))).toEqual({ errors: [], released: [] });
   });
 
+  it('asks for no changelog until one is named', () => {
+    const root = repository();
+    fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ version: '0.2.0' })}\n`);
+    fs.writeFileSync(path.join(root, 'CHANGELOG.md'), '## 0.1.0\n\nNot the new one.\n');
+
+    const result = guard({ root, base: 'origin/main', git: touched(['src/thing.ts']) });
+
+    expect(result.errors).toEqual([]);
+    expect(result.released).toEqual([`${path.basename(root)} 0.1.0 -> 0.2.0`]);
+  });
+
   it('asks for no changelog when the caller keeps none', () => {
     const root = repository();
     fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ version: '0.2.0' })}\n`);
     fs.rmSync(path.join(root, 'CHANGELOG.md'));
 
-    const result = check(root, touched(['src/thing.ts']), { changelog: '' });
+    const result = check(root, touched(['src/thing.ts']), { checkChangelog: '' });
 
     expect(result.errors).toEqual([]);
     expect(result.released).toEqual([`${path.basename(root)} 0.1.0 -> 0.2.0`]);
   });
 
   it('still asks for the version when the caller keeps no changelog', () => {
-    const result = check(repository(), touched(['src/thing.ts']), { changelog: '' });
+    const result = check(repository(), touched(['src/thing.ts']), { checkChangelog: '' });
 
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]?.rule).toBe('version');
