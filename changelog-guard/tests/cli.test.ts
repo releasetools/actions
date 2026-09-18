@@ -184,7 +184,7 @@ describe('runCli', () => {
 
     expect(code).toBe(2);
     expect(err).toContain('base is required');
-    expect(err).toContain('Usage: plugin-release --base <ref>');
+    expect(err).toContain('Usage: changelog-guard --base <ref>');
   });
 
   it('prints usage and exits 2 for a pattern that matches nothing', () => {

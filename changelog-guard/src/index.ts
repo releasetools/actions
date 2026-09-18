@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import { checkRelease } from './check-release';
+import { guard } from './guard';
 import { SKIP_LABEL, skipRequested } from './skip-label';
 
 export function run(): void {
@@ -11,14 +11,18 @@ export function run(): void {
       return;
     }
 
-    const { released, errors } = checkRelease({
+    const { released, errors } = guard({
       root: process.cwd(),
       base: core.getInput('base', { required: true }),
       modules: core.getMultilineInput('modules'),
       manifest: core.getInput('manifest') || undefined,
       changelog: core.getInput('changelog') || undefined,
       ignoreFiles: core.getMultilineInput('ignore-files'),
-      caseSensitive: core.getBooleanInput('case-sensitive'),
+      // getBooleanInput throws on an empty value, which is what a caller who
+      // wrote `case-sensitive: ''` gets. Read it as false and keep the
+      // validation for everything else.
+      caseSensitive:
+        core.getInput('case-sensitive') !== '' && core.getBooleanInput('case-sensitive'),
     });
 
     for (const line of released) {

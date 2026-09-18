@@ -1,4 +1,4 @@
-name: 'Changelog check'
+name: 'Changelog guard'
 description: >-
   Fail a pull request when a module changed without recording it. Every
   module whose source changed against the base ref must carry a higher

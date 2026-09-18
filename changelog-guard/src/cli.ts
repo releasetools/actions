@@ -1,5 +1,5 @@
 import { parseArgs } from 'node:util';
-import { checkRelease, DEFAULTS, UsageError } from './check-release';
+import { guard, DEFAULTS, UsageError } from './guard';
 
 /** Where the CLI writes. The tests pass their own. */
 export interface Streams {
@@ -17,7 +17,7 @@ const OPTIONS = {
   'case-sensitive': { type: 'boolean' },
 } as const;
 
-const USAGE = `Usage: plugin-release --base <ref> [options]
+const USAGE = `Usage: changelog-guard --base <ref> [options]
 
   --base <ref>          required, for example origin/main
   --root <dir>          repository root (default: the working directory)
@@ -44,7 +44,7 @@ export function runCli(argv: string[], streams: Streams): number {
 
   let result;
   try {
-    result = checkRelease({
+    result = guard({
       root: values.root ?? process.cwd(),
       base: values.base ?? '',
       modules: values.modules,
@@ -87,6 +87,6 @@ function parse(argv: string[]) {
 }
 
 function usage(streams: Streams, problem: string): number {
-  streams.err(`plugin-release: ${problem}\n\n${USAGE}`);
+  streams.err(`changelog-guard: ${problem}\n\n${USAGE}`);
   return 2;
 }

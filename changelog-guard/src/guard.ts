@@ -68,7 +68,7 @@ export interface CheckResult {
  * exists. A fix shipped with no entry loses the reasoning while somebody
  * still remembers it.
  */
-export function checkRelease(options: CheckOptions): CheckResult {
+export function guard(options: CheckOptions): CheckResult {
   const {
     base,
     modules = DEFAULTS.modules,

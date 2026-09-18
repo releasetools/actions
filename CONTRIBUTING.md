@@ -40,8 +40,8 @@ Consumers select an action by subdirectory and version, for example
 `releasetools/actions/signed-push@v0`. The published tree intentionally excludes
 source, tests, dependencies, and CI configuration.
 
-The same run publishes `plugin-release`'s CLI to npm as
-`@releasetools/plugin-release`, at the version being released without its
+The same run publishes `changelog-guard`'s CLI to npm as
+`@releasetools/changelog-guard`, at the version being released without its
 leading `v`, so a repository being checked can hold it as a devDependency and
 run it before pushing. Authentication is npm trusted publishing: the job's
 `id-token: write` permission is enough, and the workflow filename registered on
@@ -53,7 +53,7 @@ tree with the same script:
 
 ```bash
 npm run package:npm -- --version 0.1.0
-node npm/plugin-release.js   # exits 2 with no --base, which is the smoke test
+node npm/changelog-guard.js   # exits 2 with no --base, which is the smoke test
 npm publish npm --access public
 ```
 

@@ -10,8 +10,8 @@ name: Release
 # a tree with no source, no node_modules, no tests, no CI. Source
 # lives on main.
 #
-# The same run publishes plugin-release's CLI to npm as
-# @releasetools/plugin-release, at the version being released.
+# The same run publishes changelog-guard's CLI to npm as
+# @releasetools/changelog-guard, at the version being released.
 
 on:
   workflow_dispatch:
@@ -106,7 +106,7 @@ jobs:
           set -euo pipefail
           mkdir -p stage
           cp LICENSE stage/
-          for action in signed-push plugin-release; do
+          for action in signed-push changelog-guard; do
             mkdir -p "stage/$action"
             cp "$action/action.yml" "stage/$action/"
             cp "$action/README.md" "stage/$action/"
@@ -172,7 +172,7 @@ jobs:
       - name: Verify the staged CLI
         run: |
           set -euo pipefail
-          node npm/plugin-release.js >/dev/null 2>&1 && code=0 || code=$?
+          node npm/changelog-guard.js >/dev/null 2>&1 && code=0 || code=$?
           if [ "$code" -ne 2 ]; then
             echo "::error::the staged CLI exited $code with no --base; expected 2"
             exit 1
@@ -196,7 +196,7 @@ jobs:
         run: |
           set -euo pipefail
           npm install -g npm@latest
-          name='@releasetools/plugin-release'
+          name='@releasetools/changelog-guard'
           expected="${VERSION#v}"
 
           # An npm version can never be replaced, so a re-run of a release that
@@ -237,5 +237,5 @@ jobs:
             echo "- [\`${VERSION}\`](${SERVER}/${REPO}/tree/${VERSION})"
             echo "- [\`${MAJOR}\`](${SERVER}/${REPO}/tree/${MAJOR})"
             echo
-            echo "npm \`@releasetools/plugin-release@${VERSION#v}\`: ${NPM_STATUS}"
+            echo "npm \`@releasetools/changelog-guard@${VERSION#v}\`: ${NPM_STATUS}"
           } >> "$GITHUB_STEP_SUMMARY"

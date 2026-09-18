@@ -1,4 +1,4 @@
-# `plugin-release`
+# `changelog-guard`
 
 Fail a pull request when a module changed without recording it. It runs as a
 GitHub Action on `pull_request`, and as a command a maintainer can run before
@@ -22,7 +22,7 @@ For a repository that is one versioned thing, `base` is the only input:
     # The check compares this tree against the base branch, so it needs both.
     fetch-depth: 0
 
-- uses: releasetools/actions/plugin-release@v0
+- uses: releasetools/actions/changelog-guard@v0
   if: github.event_name == 'pull_request'
   with:
     base: ${{ github.event.pull_request.base.sha }}
@@ -31,7 +31,7 @@ For a repository that is one versioned thing, `base` is the only input:
 For a repository of many, name them:
 
 ```yaml
-- uses: releasetools/actions/plugin-release@v0
+- uses: releasetools/actions/changelog-guard@v0
   if: github.event_name == 'pull_request'
   with:
     base: ${{ github.event.pull_request.base.sha }}
@@ -45,18 +45,18 @@ and the step fails.
 ## Run it before you push
 
 ```bash
-npm install --save-dev @releasetools/plugin-release
+npm install --save-dev @releasetools/changelog-guard
 ```
 
 ```json
 "scripts": {
-  "check:changelog": "plugin-release --base origin/main --modules 'packages/*'"
+  "check:changelog": "changelog-guard --base origin/main --modules 'packages/*'"
 }
 ```
 
 The published package version matches the action release it was built from, so
-`@releasetools/plugin-release@0.1.0` is the CLI inside
-`releasetools/actions/plugin-release@v0.1.0`.
+`@releasetools/changelog-guard@0.1.0` is the CLI inside
+`releasetools/actions/changelog-guard@v0.1.0`.
 
 The command takes the action's inputs as flags, one for one, plus `--root` for
 the repository root, and returns the same exit codes. It also sees files git
@@ -156,7 +156,7 @@ recorded its new version, one `error` annotation per module that did not.
 
 ### Turning it off for one pull request
 
-Label the pull request `skip-changelog-check`. The action posts a notice saying
+Label the pull request `skip-changelog-guard`. The action posts a notice saying
 it skipped and passes, so a check somebody turned off is visible on the pull
 request that turned it off.
 

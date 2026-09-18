@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { checkRelease, UsageError, type Git } from '../src/check-release';
+import { guard, UsageError, type Git } from '../src/guard';
 
 /**
  * A module whose source changed has to record it: a version that moved, and a
@@ -53,7 +53,7 @@ function fakeGit(situation: {
   };
 }
 
-describe('checkRelease', () => {
+describe('guard', () => {
   const roots: string[] = [];
 
   /** A repository on disk, one module per pair, each with a matching changelog. */
@@ -75,8 +75,8 @@ describe('checkRelease', () => {
   }
 
   /** What every case below shares: the modules live under plugins/. */
-  function check(root: string, options: Partial<Parameters<typeof checkRelease>[0]> = {}) {
-    return checkRelease({
+  function check(root: string, options: Partial<Parameters<typeof guard>[0]> = {}) {
+    return guard({
       root,
       base: 'origin/main',
       modules: ['plugins/*'],
@@ -278,7 +278,7 @@ describe('which modules get checked', () => {
   it('treats the repository itself as the module by default', () => {
     const root = repository('.');
 
-    const result = checkRelease({ root, base: 'origin/main', git: everythingChanged() });
+    const result = guard({ root, base: 'origin/main', git: everythingChanged() });
 
     expect(result.errors).toEqual([]);
     expect(result.released).toEqual([`${path.basename(root)} 0.1.0 -> 0.2.0`]);
@@ -287,7 +287,7 @@ describe('which modules get checked', () => {
   it('takes every directory at the top with ./*', () => {
     const root = repository('one', 'two');
 
-    const result = checkRelease({
+    const result = guard({
       root,
       base: 'origin/main',
       modules: ['./*'],
@@ -301,7 +301,7 @@ describe('which modules get checked', () => {
     const root = repository('one');
     fs.mkdirSync(path.join(root, '.github/workflows'), { recursive: true });
 
-    const result = checkRelease({
+    const result = guard({
       root,
       base: 'origin/main',
       modules: ['./*'],
@@ -314,7 +314,7 @@ describe('which modules get checked', () => {
   it('takes a glob one level down, and a plain path', () => {
     const root = repository('packages/web', 'packages/api', 'tools/build');
 
-    const result = checkRelease({
+    const result = guard({
       root,
       base: 'origin/main',
       modules: ['packages/*', 'tools/build'],
@@ -331,7 +331,7 @@ describe('which modules get checked', () => {
   it('counts a directory named twice once', () => {
     const root = repository('packages/web');
 
-    const result = checkRelease({
+    const result = guard({
       root,
       base: 'origin/main',
       modules: ['packages/*', 'packages/web'],
@@ -345,7 +345,7 @@ describe('which modules get checked', () => {
     const root = repository('one');
 
     expect(() =>
-      checkRelease({ root, base: 'origin/main', modules: ['nowhere/*'], git: everythingChanged() }),
+      guard({ root, base: 'origin/main', modules: ['nowhere/*'], git: everythingChanged() }),
     ).toThrow(/no directory matches nowhere\/\*/);
   });
 
@@ -353,7 +353,7 @@ describe('which modules get checked', () => {
     const root = repository('one');
 
     expect(() =>
-      checkRelease({ root, base: 'origin/main', modules: [], git: everythingChanged() }),
+      guard({ root, base: 'origin/main', modules: [], git: everythingChanged() }),
     ).toThrow(UsageError);
   });
 });
@@ -387,7 +387,7 @@ describe('which files count as a change', () => {
   }
 
   function check(root: string, git: Git, options: Record<string, unknown> = {}) {
-    return checkRelease({ root, base: 'origin/main', git, ...options });
+    return guard({ root, base: 'origin/main', git, ...options });
   }
 
   afterEach(() => {

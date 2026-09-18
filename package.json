@@ -10,10 +10,10 @@
   },
   "scripts": {
     "build:signed-push": "ncc build signed-push/src/index.ts -o signed-push/dist --license licenses.txt --minify",
-    "build:plugin-release": "ncc build plugin-release/src/index.ts -o plugin-release/dist --license licenses.txt --minify",
-    "build:plugin-release-cli": "ncc build plugin-release/src/bin.ts -o plugin-release/dist-cli --license licenses.txt --minify",
-    "build": "npm run build:signed-push && npm run build:plugin-release && npm run build:plugin-release-cli",
-    "package:npm": "npm run build:plugin-release-cli && node scripts/package-npm.mjs",
+    "build:changelog-guard": "ncc build changelog-guard/src/index.ts -o changelog-guard/dist --license licenses.txt --minify",
+    "build:changelog-guard-cli": "ncc build changelog-guard/src/bin.ts -o changelog-guard/dist-cli --license licenses.txt --minify",
+    "build": "npm run build:signed-push && npm run build:changelog-guard && npm run build:changelog-guard-cli",
+    "package:npm": "npm run build:changelog-guard-cli && node scripts/package-npm.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit"
