@@ -1,9 +1,9 @@
-name: 'Plugin release check'
+name: 'Changelog check'
 description: >-
-  Fail a pull request when a plugin changed without declaring its
-  release. Every plugin whose files changed against the base ref must
-  carry a higher manifest version, and its CHANGELOG.md must open a
-  section for the version it now claims.
+  Fail a pull request when a module changed without recording it. Every
+  module whose source changed against the base ref must carry a higher
+  manifest version, and its CHANGELOG.md must open a section for the
+  version it now claims.
 author: 'releasetools'
 branding:
   icon: 'check-square'
@@ -13,25 +13,29 @@ inputs:
   base:
     description: 'Ref the working tree is compared against. On a pull request, github.event.pull_request.base.sha. The checkout needs history reaching it, so use fetch-depth: 0.'
     required: true
-  plugins-dir:
-    description: 'Directory holding one subdirectory per plugin, relative to the repository root.'
+  modules:
+    description: 'Newline-delimited directories to check, as paths or globs. "./" is the repository itself, "./*" every directory at the top, "packages/*" every one under packages. A pattern matching no directory fails the run rather than checking nothing.'
     required: false
-    default: 'plugins'
+    default: './'
   manifest:
-    description: 'Manifest carrying the version, relative to a plugin directory.'
+    description: 'Manifest carrying the version, relative to a module directory.'
     required: false
-    default: '.claude-plugin/plugin.json'
+    default: 'package.json'
   changelog:
-    description: 'Changelog, relative to a plugin directory.'
+    description: 'Changelog, relative to a module directory.'
     required: false
     default: 'CHANGELOG.md'
-  ignore:
-    description: 'Newline-delimited paths, relative to a plugin directory, whose edits do not count as the plugin changing. A name matches that file, or everything under it when it is a directory. Set it empty to count every file. The changelog is here because the entry a release writes lands inside the plugin.'
+  ignore-files:
+    description: 'Newline-delimited files whose edits do not count as the module changing. Each is matched against the end of a path, so "README.md" matches at every depth and "docs/README.md" only inside a docs. "*" and "?" match within a segment, "**" across them. Set it empty to count every file.'
     required: false
     default: |
       CHANGELOG.md
       README.md
       LICENSE
+  case-sensitive:
+    description: 'Match ignore-files exactly rather than ignoring case.'
+    required: false
+    default: 'false'
 
 runs:
   using: 'node24'

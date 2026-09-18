@@ -1,6 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { ignoreMatcher } from './ignore';
+import { type Module, resolveModules } from './modules';
+import { UsageError } from './usage-error';
+
+export { UsageError };
 
 /** One git invocation: how it exited, and what it wrote. */
 export interface GitResult {
@@ -12,17 +17,19 @@ export interface GitResult {
 /** Runs git inside a working directory. The tests inject their own. */
 export type Git = (cwd: string, args: string[]) => GitResult;
 
-/** Where things are when the caller says nothing. */
+/** What the caller gets when it says nothing. */
 export const DEFAULTS = {
-  pluginsDir: 'plugins',
-  manifest: '.claude-plugin/plugin.json',
+  /** The repository itself, which is what a single-version repository needs. */
+  modules: ['./'],
+  manifest: 'package.json',
   changelog: 'CHANGELOG.md',
   /**
-   * Files whose edits are not a release. The changelog is here because the
-   * entry a release writes lands inside the plugin, so counting it would ask
-   * for a version whose only change is the sentence describing it.
+   * Files whose edits are not a change to the module. The changelog is here
+   * because the entry a release writes lands inside the module, so counting
+   * it would ask for a version whose only change is the sentence describing
+   * it.
    */
-  ignore: ['CHANGELOG.md', 'README.md', 'LICENSE'],
+  ignoreFiles: ['CHANGELOG.md', 'README.md', 'LICENSE'],
 } as const;
 
 export interface CheckOptions {
@@ -30,50 +37,45 @@ export interface CheckOptions {
   root: string;
   /** Ref the working tree is compared against, such as origin/main. */
   base: string;
-  /** Directory holding one subdirectory per plugin. */
-  pluginsDir?: string;
-  /** Manifest carrying the version, relative to a plugin's directory. */
+  /** Directories to check, as paths or globs. `./` is the repository itself. */
+  modules?: readonly string[];
+  /** Manifest carrying the version, relative to a module's directory. */
   manifest?: string;
-  /** Changelog, relative to a plugin's directory. */
+  /** Changelog, relative to a module's directory. */
   changelog?: string;
-  /**
-   * Paths whose changes do not count as the plugin changing, relative to a
-   * plugin's directory. A name with no slash matches that file, and a name
-   * matches everything under it when it is a directory. An empty list counts
-   * every file.
-   */
-  ignore?: readonly string[];
+  /** Files whose edits do not count as the module changing. */
+  ignoreFiles?: readonly string[];
+  /** Whether those patterns are matched case-sensitively. */
+  caseSensitive?: boolean;
   git?: Git;
 }
 
 export interface CheckResult {
-  /** One line per plugin that declared a release. */
+  /** One line per module that recorded its new version. */
   released: string[];
-  /** One line per plugin that changed without declaring one. */
+  /** One line per module that did not. */
   errors: string[];
 }
 
-/** The invocation was wrong, so no plugin was judged. Exit code 2. */
-export class UsageError extends Error {}
-
 /**
- * A plugin that changed declares its release: a version that moved, and a
- * changelog section carrying it.
+ * Every module whose source changed has to record the change: a version that
+ * moved, and a changelog section carrying that same version.
  *
- * The plugins are written in the repository and the merge is the release, so
- * an edit is just a commit, which leaves the diff as the only place either
- * rule can be enforced. A fix shipped under the old version reaches nobody,
- * because a client compares versions to decide whether an update exists. A
- * fix shipped with no changelog entry loses the reasoning while somebody
+ * Where a repository publishes from its main branch, an edit is just a commit
+ * and the merge is the release, which leaves the diff as the only place
+ * either half can be enforced. A fix shipped under the old version reaches
+ * nobody, because a client compares versions to decide whether an update
+ * exists. A fix shipped with no entry loses the reasoning while somebody
  * still remembers it.
  */
 export function checkRelease(options: CheckOptions): CheckResult {
   const {
     base,
-    pluginsDir = DEFAULTS.pluginsDir,
+    modules = DEFAULTS.modules,
     manifest = DEFAULTS.manifest,
     changelog = DEFAULTS.changelog,
-    ignore = DEFAULTS.ignore,
+    ignoreFiles = DEFAULTS.ignoreFiles,
+    caseSensitive = false,
     git = spawnGit,
   } = options;
 
@@ -82,59 +84,55 @@ export function checkRelease(options: CheckOptions): CheckResult {
   }
 
   const root = path.resolve(options.root);
-  const directory = path.join(root, pluginsDir);
-  if (!fs.existsSync(directory)) {
-    throw new UsageError(`no plugins directory at ${pluginsDir}`);
-  }
+  const ignored = ignoreMatcher(ignoreFiles, caseSensitive);
 
   const released: string[] = [];
   const errors: string[] = [];
 
-  for (const name of subdirectories(directory)) {
-    const relative = `${pluginsDir}/${name}`;
-
-    const diff = git(root, ['diff', '--name-only', base, '--', relative]);
-    if (diff.status !== 0) {
-      errors.push(`cannot compare against ${base}: ${diff.stderr.trim()}`);
+  for (const module of resolveModules(root, modules)) {
+    const changed = changedFiles(git, root, base, module);
+    if (typeof changed === 'string') {
+      errors.push(changed);
       continue;
     }
-    if (!changedBeyond(diff.stdout, relative, ignore)) {
+    if (!changed.some((file) => !ignored(file))) {
       continue;
     }
 
+    const manifestPath = within(module, manifest);
     let now: string;
     try {
-      now = versionIn(fs.readFileSync(path.join(directory, name, manifest), 'utf8'));
+      now = versionIn(fs.readFileSync(path.join(root, manifestPath), 'utf8'));
     } catch (err) {
-      errors.push(`${relative}/${manifest} ${reason(err)}`);
+      errors.push(`${manifestPath} ${reason(err)}`);
       continue;
     }
 
-    const before = git(root, ['show', `${base}:${relative}/${manifest}`]);
+    const before = git(root, ['show', `${base}:${manifestPath}`]);
     if (before.status !== 0) {
-      // Not there at the base commit, so this is a new plugin and its first
+      // Not there at the base commit, so the module is new and its first
       // version is whatever it says.
-      released.push(`${name} is new, at ${now}`);
+      released.push(`${module.label} is new, at ${now}`);
     } else {
       let was: string;
       try {
         was = versionIn(before.stdout);
       } catch (err) {
-        errors.push(`${relative}/${manifest} at ${base} ${reason(err)}`);
+        errors.push(`${manifestPath} at ${base} ${reason(err)}`);
         continue;
       }
       if (compareVersions(now, was) <= 0) {
         errors.push(
-          `${relative}/ changed but its version is still ${now}. Somebody has ${was} ` +
+          `${module.label} changed but its version is still ${now}. Somebody has ${was} ` +
             'installed, and a client compares versions to decide whether an update ' +
             'exists, so bump it before merging.',
         );
         continue;
       }
-      released.push(`${name} ${was} -> ${now}`);
+      released.push(`${module.label} ${was} -> ${now}`);
     }
 
-    const complaint = changelogError(path.join(directory, name), relative, changelog, now);
+    const complaint = changelogError(root, module, changelog, now);
     if (complaint) {
       errors.push(complaint);
     }
@@ -144,42 +142,75 @@ export function checkRelease(options: CheckOptions): CheckResult {
 }
 
 /**
- * Whether the diff holds a file that is a release, rather than only files a
- * release writes anyway.
+ * What changed inside a module, module-relative, or the complaint about why
+ * git could not say.
  *
- * `git diff --name-only` prints paths from the repository root, so each one is
- * cut back to the plugin before it is matched.
+ * Two questions, because they have two answers. `diff` knows what moved
+ * against the base ref and nothing about a file git has never seen, and
+ * `ls-files --others` knows the new ones. A module somebody just wrote is
+ * untracked until it is added, and a command that called that repository
+ * clean would be worth nothing to the person running it before they push.
  */
-function changedBeyond(diff: string, relative: string, ignore: readonly string[]): boolean {
-  return diff
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line !== '')
-    .map((file) => (file.startsWith(`${relative}/`) ? file.slice(relative.length + 1) : file))
-    .some((file) => !ignore.some((entry) => file === entry || file.startsWith(`${entry}/`)));
+function changedFiles(git: Git, root: string, base: string, module: Module): string[] | string {
+  const pathspec = module.path === '' ? '.' : module.path;
+
+  const diff = git(root, ['diff', '--name-only', base, '--', pathspec]);
+  if (diff.status !== 0) {
+    return `cannot compare against ${base}: ${diff.stderr.trim()}`;
+  }
+  const untracked = git(root, [
+    'ls-files',
+    '--full-name',
+    '--others',
+    '--exclude-standard',
+    '--',
+    pathspec,
+  ]);
+  if (untracked.status !== 0) {
+    return `cannot list new files under ${module.label}: ${untracked.stderr.trim()}`;
+  }
+
+  const prefix = module.path === '' ? '' : `${module.path}/`;
+  const files = new Set<string>();
+  for (const line of [...lines(diff.stdout), ...lines(untracked.stdout)]) {
+    files.add(line.startsWith(prefix) ? line.slice(prefix.length) : line);
+  }
+  return [...files];
 }
 
-/** The complaint about a plugin's changelog, or null when it carries the version. */
+function lines(output: string): string[] {
+  return output
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '');
+}
+
+/** A path inside a module, as the repository sees it. */
+function within(module: Module, relative: string): string {
+  return module.path === '' ? relative : `${module.path}/${relative}`;
+}
+
+/** The complaint about a module's changelog, or null when it carries the version. */
 function changelogError(
-  directory: string,
-  relative: string,
+  root: string,
+  module: Module,
   changelog: string,
   version: string,
 ): string | null {
-  const file = path.join(directory, changelog);
+  const relative = within(module, changelog);
+  const file = path.join(root, relative);
   if (!fs.existsSync(file)) {
     return (
-      `${relative}/ is at ${version} and has no ${changelog}. A release writes itself ` +
-      `into ${relative}/${changelog}, newest first: what changed, and the choices behind it.`
+      `${module.label} is at ${version} and has no ${changelog}. A release writes itself ` +
+      `into ${relative}, newest first: what changed, and the choices behind it.`
     );
   }
   if (carries(fs.readFileSync(file, 'utf8'), version)) {
     return null;
   }
   return (
-    `${relative}/${changelog} has no section for ${version}. Add one above the older ` +
-    'releases: what changed, and the reason not to act that a later change cannot get ' +
-    'from the diff.'
+    `${relative} has no section for ${version}. Add one above the older releases: ` +
+    'what changed, and the reason not to act that a later change cannot get from the diff.'
   );
 }
 
@@ -227,14 +258,6 @@ function segments(version: string): number[] {
     const value = Number.parseInt(part, 10);
     return Number.isNaN(value) ? 0 : value;
   });
-}
-
-function subdirectories(directory: string): string[] {
-  return fs
-    .readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
 }
 
 function reason(err: unknown): string {

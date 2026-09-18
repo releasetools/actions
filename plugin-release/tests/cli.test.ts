@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runCli, type Streams } from '../src/cli';
 
 /**
- * The unit tests stub git. This one drives a real repository, so the diff,
- * the base blob and the exit codes are the ones a maintainer gets from
- * `npm run check:release`.
+ * The unit tests stub git. This one drives a real repository, so the diff, the
+ * untracked files, the base blob and the exit codes are the ones a maintainer
+ * gets from `npm run check:changelog`.
  */
 describe('runCli', () => {
   let root: string;
@@ -24,8 +24,8 @@ describe('runCli', () => {
     fs.writeFileSync(file, contents);
   }
 
-  function plugin(version: string, changelog: string): void {
-    write('plugins/docket/.claude-plugin/plugin.json', `${JSON.stringify({ name: 'docket', version })}\n`);
+  function module(version: string, changelog: string): void {
+    write('plugins/docket/plugin.json', `${JSON.stringify({ name: 'docket', version })}\n`);
     write('plugins/docket/CHANGELOG.md', changelog);
   }
 
@@ -46,18 +46,24 @@ describe('runCli', () => {
         err += text;
       },
     };
-    return { code: runCli(['--root', root, ...argv], streams), out, err };
+    const code = runCli(
+      ['--root', root, '--modules', 'plugins/*', '--manifest', 'plugin.json', ...argv],
+      streams,
+    );
+    return { code, out, err };
   }
 
   beforeEach(() => {
-    root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plugins-')));
+    root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'modules-')));
     git('init', '-b', 'main');
     git('config', 'user.email', 'test@example.invalid');
     git('config', 'user.name', 'Test');
     git('config', 'commit.gpgsign', 'false');
-    plugin('0.1.0', '# docket\n\n## 0.1.0\n\nThe first release.\n');
+    module('0.1.0', '# docket\n\n## 0.1.0\n\nThe first release.\n');
     write('plugins/docket/README.md', '# docket\n');
-    base = commit('the plugin as it stands');
+    write('plugins/docket/skills/docket/SKILL.md', '# skill\n');
+    write('.gitignore', 'build/\n');
+    base = commit('the module as it stands');
   });
 
   afterEach(() => {
@@ -68,40 +74,71 @@ describe('runCli', () => {
     const { code, out, err } = run('--base', base);
 
     expect(code).toBe(0);
-    expect(out).toBe('No plugin changed\n');
+    expect(out).toBe('No module changed\n');
     expect(err).toBe('');
   });
 
-  it('fails a plugin edited without a bump', () => {
-    write('plugins/docket/skills/docket/SKILL.md', '# docket\n\nA second skill line.\n');
-    commit('edit the plugin');
+  it('fails a module edited without a bump', () => {
+    write('plugins/docket/skills/docket/SKILL.md', '# skill\n\nA second line.\n');
+    commit('edit the module');
 
     const { code, err } = run('--base', base);
 
     expect(code).toBe(1);
-    expect(err).toContain('Release check failed:');
+    expect(err).toContain('Changelog check failed:');
     expect(err).toContain('still 0.1.0');
   });
 
-  it('passes a plugin that declared its release', () => {
-    write('plugins/docket/skills/docket/SKILL.md', '# docket\n\nA second skill line.\n');
-    plugin('0.2.0', '# docket\n\n## 0.2.0 - 2026-09-12\n\nA second line.\n\n## 0.1.0\n\nThe first release.\n');
+  it('passes a module that recorded its new version', () => {
+    write('plugins/docket/skills/docket/SKILL.md', '# skill\n\nA second line.\n');
+    module('0.2.0', '# docket\n\n## 0.2.0 - 2026-09-18\n\nA second line.\n\n## 0.1.0\n\nFirst.\n');
     commit('release 0.2.0');
 
     const { code, out } = run('--base', base);
 
     expect(code).toBe(0);
-    expect(out).toBe('docket 0.1.0 -> 0.2.0\nEvery changed plugin declared its release\n');
+    expect(out).toBe(
+      'plugins/docket 0.1.0 -> 0.2.0\nEvery changed module recorded its new version\n',
+    );
   });
 
   it('fails a bump whose changelog stayed behind', () => {
-    plugin('0.2.0', '# docket\n\n## 0.1.0\n\nThe first release.\n');
+    module('0.2.0', '# docket\n\n## 0.1.0\n\nThe first release.\n');
     commit('bump and forget');
 
     const { code, err } = run('--base', base);
 
     expect(code).toBe(1);
     expect(err).toContain('no section for 0.2.0');
+  });
+
+  it('sees a file that was never committed', () => {
+    write('plugins/docket/skills/docket/new.md', '# a new skill\n');
+
+    const { code, err } = run('--base', base);
+
+    expect(code).toBe(1);
+    expect(err).toContain('still 0.1.0');
+  });
+
+  it('sees a module that was never committed', () => {
+    write('plugins/scaffold/plugin.json', `${JSON.stringify({ version: '0.1.0' })}\n`);
+    write('plugins/scaffold/skills/x.md', '# x\n');
+
+    const { code, out, err } = run('--base', base);
+
+    expect(code).toBe(1);
+    expect(out).toContain('plugins/scaffold is new, at 0.1.0');
+    expect(err).toContain('has no CHANGELOG.md');
+  });
+
+  it('leaves a file git is ignoring out of it', () => {
+    write('plugins/docket/build/output.js', 'generated\n');
+
+    const { code, out } = run('--base', base);
+
+    expect(code).toBe(0);
+    expect(out).toBe('No module changed\n');
   });
 
   it('asks for nothing when a real commit only touched the README', () => {
@@ -111,17 +148,35 @@ describe('runCli', () => {
     const { code, out } = run('--base', base);
 
     expect(code).toBe(0);
-    expect(out).toBe('No plugin changed\n');
+    expect(out).toBe('No module changed\n');
   });
 
   it('counts the README when the caller passes no ignores', () => {
     write('plugins/docket/README.md', '# docket\n\nA second line.\n');
     commit('fix a typo in the README');
 
-    const { code, err } = run('--base', base, '--ignore', '');
+    const { code, err } = run('--base', base, '--ignore-files', '');
 
     expect(code).toBe(1);
     expect(err).toContain('still 0.1.0');
+  });
+
+  it('treats the repository as one module when nothing names any', () => {
+    write('package.json', `${JSON.stringify({ version: '0.1.0' })}\n`);
+    write('CHANGELOG.md', '## 0.1.0\n\nThe first release.\n');
+    const versioned = commit('give the repository a version');
+    write('src/thing.ts', 'export const one = 1;\n');
+
+    let err = '';
+    const code = runCli(['--root', root, '--base', versioned], {
+      out: () => {},
+      err: (text) => {
+        err += text;
+      },
+    });
+
+    expect(code).toBe(1);
+    expect(err).toContain(`${path.basename(root)} changed but its version is still 0.1.0`);
   });
 
   it('prints usage and exits 2 without a base', () => {
@@ -132,10 +187,10 @@ describe('runCli', () => {
     expect(err).toContain('Usage: plugin-release --base <ref>');
   });
 
-  it('prints usage and exits 2 for a plugins directory that is not there', () => {
-    const { code, err } = run('--base', base, '--plugins-dir', 'nowhere');
+  it('prints usage and exits 2 for a pattern that matches nothing', () => {
+    const { code, err } = run('--base', base, '--modules', 'nowhere/*');
 
     expect(code).toBe(2);
-    expect(err).toContain('no plugins directory at nowhere');
+    expect(err).toContain('no directory matches nowhere/*');
   });
 });

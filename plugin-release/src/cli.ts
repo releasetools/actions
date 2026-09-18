@@ -10,22 +10,27 @@ export interface Streams {
 const OPTIONS = {
   base: { type: 'string' },
   root: { type: 'string' },
-  'plugins-dir': { type: 'string' },
+  modules: { type: 'string', multiple: true },
   manifest: { type: 'string' },
   changelog: { type: 'string' },
-  ignore: { type: 'string', multiple: true },
+  'ignore-files': { type: 'string', multiple: true },
+  'case-sensitive': { type: 'boolean' },
 } as const;
 
 const USAGE = `Usage: plugin-release --base <ref> [options]
 
   --base <ref>          required, for example origin/main
   --root <dir>          repository root (default: the working directory)
-  --plugins-dir <dir>   default: ${DEFAULTS.pluginsDir}
-  --manifest <path>     default: ${DEFAULTS.manifest}
-  --changelog <path>    default: ${DEFAULTS.changelog}
-  --ignore <path>       a file whose edits are not a release, repeatable
-                        (default: ${DEFAULTS.ignore.join(', ')}). Pass an
-                        empty one to count every file.
+  --modules <glob>      a directory to check, repeatable (default: ${DEFAULTS.modules.join(', ')}).
+                        ./ is the repository itself, ./* every directory at
+                        the top, packages/* every one under packages
+  --manifest <path>     relative to a module (default: ${DEFAULTS.manifest})
+  --changelog <path>    relative to a module (default: ${DEFAULTS.changelog})
+  --ignore-files <glob> a file whose edits are not a change, repeatable
+                        (default: ${DEFAULTS.ignoreFiles.join(', ')}). Matched
+                        against the end of a path, so README.md matches at
+                        every depth. Pass an empty one to count every file
+  --case-sensitive      match --ignore-files exactly rather than ignoring case
 `;
 
 /** Runs the check and returns the exit code: 0 pass, 1 failed, 2 usage. */
@@ -42,12 +47,13 @@ export function runCli(argv: string[], streams: Streams): number {
     result = checkRelease({
       root: values.root ?? process.cwd(),
       base: values.base ?? '',
-      pluginsDir: values['plugins-dir'],
+      modules: values.modules,
       manifest: values.manifest,
       changelog: values.changelog,
-      // `--ignore ''` is how a caller asks for every file to count, so an
-      // empty value is a deliberate empty list rather than no answer.
-      ignore: values.ignore?.filter((entry) => entry.trim() !== ''),
+      // `--ignore-files ''` is how a caller asks for every file to count, so
+      // an empty value is a deliberate empty list rather than no answer.
+      ignoreFiles: values['ignore-files']?.filter((entry) => entry.trim() !== ''),
+      caseSensitive: values['case-sensitive'] === true,
     });
   } catch (err) {
     if (err instanceof UsageError) {
@@ -61,7 +67,7 @@ export function runCli(argv: string[], streams: Streams): number {
   }
 
   if (result.errors.length > 0) {
-    streams.err('Release check failed:\n');
+    streams.err('Changelog check failed:\n');
     for (const error of result.errors) {
       streams.err(`- ${error}\n`);
     }
@@ -70,8 +76,8 @@ export function runCli(argv: string[], streams: Streams): number {
 
   streams.out(
     result.released.length === 0
-      ? 'No plugin changed\n'
-      : 'Every changed plugin declared its release\n',
+      ? 'No module changed\n'
+      : 'Every changed module recorded its new version\n',
   );
   return 0;
 }

@@ -8,7 +8,7 @@ import * as fs from 'node:fs';
  * that skipped it would have to read that repository's workflow to learn what
  * the label was called.
  */
-export const SKIP_LABEL = 'skip-changelog';
+export const SKIP_LABEL = 'skip-changelog-check';
 
 /**
  * Whether this run is a pull request carrying the skip label.

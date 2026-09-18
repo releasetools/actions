@@ -44,10 +44,10 @@ outputs, permissions, and behavior.
 
 ### `plugin-release`
 
-Fail a pull request when a plugin changed without declaring its release: its
-manifest version has to move, and its `CHANGELOG.md` has to open a section for
-the version it now claims. For a repository that holds several plugins side by
-side, each with its own version.
+Fail a pull request when a module changed without recording it: its manifest
+version has to move, and its `CHANGELOG.md` has to open a section for the
+version it now claims. A module is any directory with its own version, from the
+repository itself to every package in a workspace.
 
 ```yaml
 - uses: actions/checkout@v6
@@ -59,15 +59,17 @@ side, each with its own version.
   if: github.event_name == 'pull_request'
   with:
     base: ${{ github.event.pull_request.base.sha }}
+    # Omit for a repository that is one versioned thing.
+    modules: packages/*
 ```
 
-Each plugin that failed the rule becomes an annotation on the pull request. The
+Each module that failed the rule becomes an annotation on the pull request. The
 same check installs from npm as `@releasetools/plugin-release`, so a maintainer
 can run `plugin-release --base origin/main` before pushing instead of hearing
-about it from CI.
+about it from CI, and the command also sees files that are not committed yet.
 
-See the [`plugin-release` guide](plugin-release/) for the rule, the inputs, and
-the exit codes.
+See the [`plugin-release` guide](plugin-release/) for module globs, the rule,
+the inputs, and the exit codes.
 
 More actions are planned for common cross-workflow release patterns.
 
