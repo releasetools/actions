@@ -1,8 +1,6 @@
 # `changelog-guard`
 
-Fail a pull request when a project changed without recording it. It runs as a
-GitHub Action on `pull_request`, and as a command a maintainer can run before
-pushing.
+Fail a pull request when a project changed without recording it.
 
 A project here is any directory with its own version: the repository itself, or
 each package in a workspace. Where a repository installs straight off `main`
@@ -40,27 +38,6 @@ Outside a pull request there is nothing to read, so `base` has to be set.
 
 Every project that failed the rule becomes an annotation on the pull request,
 and the step fails.
-
-## Run it before you push
-
-```bash
-npm install --save-dev @releasetools/changelog-guard
-```
-
-```json
-"scripts": {
-  "check:changelog": "changelog-guard --base origin/main --projects 'packages/*'"
-}
-```
-
-The published package version matches the action release it was built from, so
-`@releasetools/changelog-guard@0.1.0` is the CLI inside
-`releasetools/actions/changelog-guard@v0.1.0`.
-
-The command takes the action's inputs as flags, one for one, plus `--root` for
-the repository root, and returns the same exit codes. It also sees files git
-has never been told about, so a project you have written but not committed is
-checked the way it will be once you do.
 
 ## Which projects get checked
 
@@ -182,11 +159,9 @@ is a different escape hatch in every repository, and a reviewer looking at a
 pull request that skipped the check would have to read that repository's
 workflow to learn what the label was called.
 
-The CLI has no equivalent: there is no pull request to carry a label.
+## What it reports
 
-## Output and exit codes
-
-The command writes one line per project that recorded its new version, then a
+The action logs one line per project that recorded its new version, then a
 verdict:
 
 ```
@@ -196,14 +171,11 @@ Every changed project recorded its new version
 ```
 
 A project is named by its path, or by the repository's own directory name when
-it is the repository. Failures go to stderr under a `Changelog check failed:`
-heading, one `- ` line each.
+it is the repository. Every failure becomes an `error` annotation, and the step
+fails once with `Changelog check failed. See the annotations.`
 
-| code | |
-| --- | --- |
-| 0 | the rule holds |
-| 1 | at least one project failed it |
-| 2 | usage: nothing to compare against, an unknown flag, or a pattern matching no directory |
+A run that could not start at all fails the same way with what was wrong:
+nothing to compare against, or a `projects` pattern matching no directory.
 
 ## What it will not do
 

@@ -65,10 +65,10 @@ repository itself to every package in a workspace.
 A pull request already says what it is against, so there is nothing else to
 configure.
 
-Each project that failed the rule becomes an annotation on the pull request. The
-same check installs from npm as `@releasetools/changelog-guard`, so a maintainer
-can run `changelog-guard --base origin/main` before pushing instead of hearing
-about it from CI, and the command also sees files that are not committed yet.
+Each project that failed the rule becomes an annotation on the pull request. It
+reads a version out of `package.json`, `pyproject.toml`, `Cargo.toml`, a
+`VERSION` file or whatever else the project names, and it counts files that are
+not committed yet as well as the diff.
 
 See the [`changelog-guard` guide](changelog-guard/) for project globs, the rule,
 the inputs, and the exit codes.
