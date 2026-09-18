@@ -146,7 +146,12 @@ A changed project still has to carry a changelog section for its new version:
 | `case-sensitive` | `false` | match `ignore-files` exactly rather than ignoring case |
 
 The action reports through `@actions/core`: one `info` line per project that
-recorded its new version, one `error` annotation per project that did not.
+recorded its new version, and one `error` annotation per project that did not,
+titled by the half of the rule that failed. `Version not bumped` and `Changelog
+not updated` are separate titles so a reviewer can see which one fired without
+reading the message, and `Changelog guard could not run` is neither: a base ref
+git cannot reach, a `projects` pattern matching nothing, or a manifest that
+declares no version.
 
 ### Turning it off for one pull request
 

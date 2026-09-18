@@ -1,7 +1,14 @@
 import * as core from '@actions/core';
 import { baseSha } from './event';
-import { guard } from './guard';
+import { guard, type Rule } from './guard';
 import { SKIP_LABEL, skipRequested } from './skip-label';
+
+/** What each half of the rule calls itself on the pull request. */
+const TITLES: Record<Rule, string> = {
+  version: 'Version not bumped',
+  changelog: 'Changelog not updated',
+  setup: 'Changelog guard could not run',
+};
 
 export function run(): void {
   try {
@@ -34,9 +41,9 @@ export function run(): void {
 
     if (errors.length > 0) {
       // Annotations, so the complaint lands on the pull request rather than
-      // only in the log.
-      for (const error of errors) {
-        core.error(error, { title: 'Changelog check' });
+      // only in the log, titled by the half of the rule that failed.
+      for (const { rule, message } of errors) {
+        core.error(message, { title: TITLES[rule] });
       }
       core.setFailed('Changelog check failed. See the annotations.');
       return;

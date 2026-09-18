@@ -72,7 +72,7 @@ describe('guard, against a real repository', () => {
     const { errors } = check();
 
     expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('still 0.1.0');
+    expect(errors[0]?.message).toContain('still 0.1.0');
   });
 
   it('passes a project that recorded its new version', () => {
@@ -92,7 +92,7 @@ describe('guard, against a real repository', () => {
 
     const { errors } = check();
 
-    expect(errors[0]).toContain('no section for 0.2.0');
+    expect(errors[0]?.message).toContain('no section for 0.2.0');
   });
 
   it('sees a file that was never committed', () => {
@@ -100,7 +100,7 @@ describe('guard, against a real repository', () => {
 
     const { errors } = check();
 
-    expect(errors[0]).toContain('still 0.1.0');
+    expect(errors[0]?.message).toContain('still 0.1.0');
   });
 
   it('sees a project that was never committed', () => {
@@ -110,7 +110,7 @@ describe('guard, against a real repository', () => {
     const { released, errors } = check();
 
     expect(released).toContain('plugins/scaffold is new, at 0.1.0');
-    expect(errors[0]).toContain('has no CHANGELOG.md');
+    expect(errors[0]?.message).toContain('has no CHANGELOG.md');
   });
 
   it('leaves a file git is ignoring out of it', () => {
@@ -132,7 +132,7 @@ describe('guard, against a real repository', () => {
 
     const { errors } = check({ ignoreFiles: [] });
 
-    expect(errors[0]).toContain('still 0.1.0');
+    expect(errors[0]?.message).toContain('still 0.1.0');
   });
 
   it('treats the repository as one project when nothing names any', () => {
@@ -143,7 +143,7 @@ describe('guard, against a real repository', () => {
 
     const { errors } = guard({ root, base: versioned });
 
-    expect(errors[0]).toContain(`${path.basename(root)} changed but its version is still 0.1.0`);
+    expect(errors[0]?.message).toContain(`${path.basename(root)} changed but its version is still 0.1.0`);
   });
 
   it('refuses a run with nothing to compare against', () => {

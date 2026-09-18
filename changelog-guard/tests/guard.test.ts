@@ -114,7 +114,7 @@ describe('guard', () => {
     });
 
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain('still 0.1.0');
+    expect(result.errors[0]?.message).toContain('still 0.1.0');
   });
 
   it('catches a version that went backwards', () => {
@@ -123,7 +123,7 @@ describe('guard', () => {
     });
 
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain('still 0.1.0');
+    expect(result.errors[0]?.message).toContain('still 0.1.0');
   });
 
   it('asks nothing of a project that is new', () => {
@@ -152,7 +152,7 @@ describe('guard', () => {
       git: () => ({ status: 128, stdout: '', stderr: 'bad revision\n' }),
     });
 
-    expect(result.errors[0]).toContain('cannot compare against origin/main');
+    expect(result.errors[0]?.message).toContain('cannot compare against origin/main');
   });
 
   it('catches a bumped project whose changelog never mentions the version', () => {
@@ -165,7 +165,7 @@ describe('guard', () => {
 
     expect(result.released).toEqual(['plugins/docket 0.1.0 -> 0.2.0']);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain('no section for 0.2.0');
+    expect(result.errors[0]?.message).toContain('no section for 0.2.0');
   });
 
   it('catches a project with no changelog at all', () => {
@@ -177,7 +177,7 @@ describe('guard', () => {
     });
 
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain('has no CHANGELOG.md');
+    expect(result.errors[0]?.message).toContain('has no CHANGELOG.md');
   });
 
   it('asks for a changelog entry from a new project too', () => {
@@ -237,9 +237,27 @@ describe('guard', () => {
     });
 
     expect(result.errors).toEqual([
-      'plugins/docket declares no version. Looked for plugin.json; name the file that holds it.',
+      {
+        rule: 'setup',
+        message:
+          'plugins/docket declares no version. Looked for plugin.json; name the file that holds it.',
+      },
     ]);
     expect(result.released).toEqual(['plugins/scaffold 2.3.3 -> 2.3.4']);
+  });
+
+  it('names which half of the rule each failure came from', () => {
+    const root = build(['docket', '0.1.0'], ['scaffold', '2.3.4']);
+    write(root, 'plugins/scaffold/CHANGELOG.md', '# scaffold\n\n## 2.3.3\n\nThe one before.\n');
+
+    const result = check(root, {
+      git: fakeGit({
+        changed: ['docket', 'scaffold'],
+        versions: { docket: '0.1.0', scaffold: '2.3.3' },
+      }),
+    });
+
+    expect(result.errors.map((failure) => failure.rule)).toEqual(['version', 'changelog']);
   });
 
   it('refuses a run with no base ref', () => {
@@ -417,7 +435,7 @@ describe('which files count as a change', () => {
     const result = check(repository(), touched(['CHANGELOG.md', 'src/thing.ts']));
 
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain('still 0.1.0');
+    expect(result.errors[0]?.message).toContain('still 0.1.0');
   });
 
   it('ignores a named file at any depth', () => {
@@ -467,7 +485,7 @@ describe('which files count as a change', () => {
     const result = check(repository(), touched([], ['src/brand-new.ts']));
 
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain('still 0.1.0');
+    expect(result.errors[0]?.message).toContain('still 0.1.0');
   });
 
   it('says so when git cannot list the new files', () => {
@@ -478,6 +496,6 @@ describe('which files count as a change', () => {
       return { status: 0, stdout: 'src/thing.ts\n', stderr: '' };
     });
 
-    expect(result.errors[0]).toContain('cannot list new files');
+    expect(result.errors[0]?.message).toContain('cannot list new files');
   });
 });

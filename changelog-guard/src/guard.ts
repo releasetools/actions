@@ -56,11 +56,26 @@ export interface CheckOptions {
   git?: Git;
 }
 
+/**
+ * Which half of the rule a failure came from.
+ *
+ * The two travel together because neither stands alone: a version that moved
+ * with nothing written down is half a release, and a changelog checked against
+ * a version that never moved passes on an entry written a year ago. They are
+ * named apart so a reviewer can see from the annotation which one fired.
+ */
+export type Rule = 'version' | 'changelog' | 'setup';
+
+export interface Failure {
+  rule: Rule;
+  message: string;
+}
+
 export interface CheckResult {
   /** One line per project that recorded its new version. */
   released: string[];
-  /** One line per project that did not. */
-  errors: string[];
+  /** One per project that did not. */
+  errors: Failure[];
 }
 
 /**
@@ -96,12 +111,12 @@ export function guard(options: CheckOptions): CheckResult {
   const ignored = ignoreMatcher(ignoreFiles, caseSensitive);
 
   const released: string[] = [];
-  const errors: string[] = [];
+  const errors: Failure[] = [];
 
   for (const project of resolveProjects(root, projects)) {
     const changed = changedFiles(git, root, base, project);
     if (typeof changed === 'string') {
-      errors.push(changed);
+      errors.push({ rule: 'setup', message: changed });
       continue;
     }
     if (!changed.some((file) => !ignored(file))) {
@@ -112,10 +127,12 @@ export function guard(options: CheckOptions): CheckResult {
       .map((candidate) => within(project, candidate))
       .find((candidate) => fs.existsSync(path.join(root, candidate)));
     if (manifestPath === undefined) {
-      errors.push(
-        `${project.label} declares no version. Looked for ${manifests.join(', ')}; ` +
+      errors.push({
+        rule: 'setup',
+        message:
+          `${project.label} declares no version. Looked for ${manifests.join(', ')}; ` +
           'name the file that holds it.',
-      );
+      });
       continue;
     }
 
@@ -123,7 +140,7 @@ export function guard(options: CheckOptions): CheckResult {
     try {
       now = versionFrom(manifestPath, fs.readFileSync(path.join(root, manifestPath), 'utf8'));
     } catch (err) {
-      errors.push(`${manifestPath} ${message(err)}`);
+      errors.push({ rule: 'setup', message: `${manifestPath} ${message(err)}` });
       continue;
     }
 
@@ -137,15 +154,17 @@ export function guard(options: CheckOptions): CheckResult {
       try {
         was = versionFrom(manifestPath, before.stdout);
       } catch (err) {
-        errors.push(`${manifestPath} at ${base} ${message(err)}`);
+        errors.push({ rule: 'setup', message: `${manifestPath} at ${base} ${message(err)}` });
         continue;
       }
       if (compareVersions(now, was) <= 0) {
-        errors.push(
-          `${project.label} changed but its version is still ${now}. Somebody has ${was} ` +
+        errors.push({
+          rule: 'version',
+          message:
+            `${project.label} changed but its version is still ${now}. Somebody has ${was} ` +
             'installed, and a client compares versions to decide whether an update ' +
             'exists, so bump it before merging.',
-        );
+        });
         continue;
       }
       released.push(`${project.label} ${was} -> ${now}`);
@@ -153,7 +172,7 @@ export function guard(options: CheckOptions): CheckResult {
 
     const complaint = changelogError(root, project, changelog, now);
     if (complaint) {
-      errors.push(complaint);
+      errors.push({ rule: 'changelog', message: complaint });
     }
   }
 
