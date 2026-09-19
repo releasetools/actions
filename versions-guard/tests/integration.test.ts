@@ -199,7 +199,7 @@ describe('both guards, against a real repository', () => {
     commit('feat(docket): a second line');
 
     expect(changelogs().failures).toHaveLength(1);
-    expect(changelogs({ except: ['changelog-per-release'] })).toEqual({
+    expect(changelogs({ except: ['changelog-per-change'] })).toEqual({
       recorded: [],
       failures: [],
     });

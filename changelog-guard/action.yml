@@ -1,7 +1,9 @@
 name: 'Changelog guard'
 description: >-
-  Fail a pull request when a project changed without a changelog section
-  for the version it now claims.
+  Fail a pull request that changes a project and writes nothing down
+  about it. The project's changelog has to carry a heading naming the
+  version its manifest declares, and a change a reader can observe moves
+  that version, so the heading is a new one.
 author: 'releasetools'
 branding:
   icon: 'book-open'

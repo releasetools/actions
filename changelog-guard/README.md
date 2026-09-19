@@ -1,7 +1,11 @@
 # `changelog-guard`
 
-Fail a pull request when a project changed without a changelog section for the
-version it now claims.
+Fail a pull request that changes a project and writes nothing down about it.
+
+What that means in a diff: the project's changelog has to carry a `##` heading
+naming the version its manifest declares. A change a reader can observe moves
+that version, so the heading is a new one, and writing what goes under it is
+the pull request's job rather than the release's.
 
 A fix shipped with nothing written down loses the reasoning while somebody
 still remembers it, and the reader who needs it is on the previous version
@@ -36,13 +40,14 @@ and [`versions-guard`](../versions-guard/) documents them. The action's one
 input is `base`, the ref to compare against, for the runs that are not pull
 requests.
 
-This checks one convention, `changelog-per-release`. Naming it under
-`conventions.except` turns the guard off wherever the file is read, rather
-than in one workflow.
+This checks one convention, `changelog-per-change`: an entry belongs to the
+change that makes it, not to whoever reconstructs the release afterwards.
+Naming it under `conventions.except` turns the guard off wherever the file is
+read, rather than in one workflow.
 
-## What counts as a section
+## What counts as a heading
 
-A `##` heading carrying the version the project's manifest now declares.
+A `##` carrying the version the project's manifest now declares.
 
 | heading | against version `0.2.0` |
 | --- | --- |

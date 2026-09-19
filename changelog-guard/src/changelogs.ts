@@ -27,8 +27,12 @@ export interface Result {
 }
 
 /**
- * Every project whose source changed has a changelog section for the version
- * it now claims.
+ * Every project whose source changed says so in its changelog.
+ *
+ * What that means in a diff: the project's changelog carries a `##` heading
+ * naming the version its manifest declares. A change a reader can observe
+ * moves that version, so the heading is a new one, and writing what goes
+ * under it belongs to the change rather than to whoever cuts the release.
  *
  * A fix shipped with nothing written down loses the reasoning while somebody
  * still remembers it, and the reader who needs it is on the previous version
@@ -37,7 +41,7 @@ export interface Result {
 export function guardChangelogs(options: GuardOptions): Result {
   // A repository that excepts the convention is not asked about it, which is
   // what naming a convention in `except` means.
-  if ((options.except ?? []).includes('changelog-per-release')) {
+  if ((options.except ?? []).includes('changelog-per-change')) {
     return { recorded: [], failures: [] };
   }
 

@@ -73,8 +73,9 @@ and where a version is read from.
 
 ### `changelog-guard`
 
-Fail a pull request when a project changed without a changelog section for the
-version it now claims.
+Fail a pull request that changes a project and writes nothing down about it.
+The project's changelog has to carry a `##` heading naming the version its
+manifest declares, which is a new heading whenever the version moved.
 
 ```yaml
 - uses: actions/checkout@v6

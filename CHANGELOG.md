@@ -23,9 +23,10 @@ patch for any file that moved. The baseline is the newest tag reachable from
 the commit rather than the newest by date, so a backport released yesterday on
 a release branch is not mistaken for this line's last release.
 
-`changelog-guard` fails a pull request when a project changed without a
-changelog section for the version it now claims. A group that names no
-changelog owes none.
+`changelog-guard` fails a pull request that changes a project and writes
+nothing down about it: the project's changelog has to carry a `##` heading
+naming the version its manifest declares, which is a new heading whenever the
+version moved. A group that names no changelog owes none.
 
 `changelog-section` hands one version's changelog section to whatever
 publishes the release, as `notes`, with `found` saying whether there was a
@@ -47,7 +48,7 @@ action is the whole of switching a guard on. `base` is the only input left.
 A convention named under `conventions.except` is one no guard checks.
 `versions-guard` reads `bump-from-type`, and excepting it drops the type table
 and asks only that a material change move the version at all;
-`changelog-guard` reads `changelog-per-release`, and excepting it turns the
+`changelog-guard` reads `changelog-per-change`, and excepting it turns the
 guard off wherever the file is read rather than in one workflow.
 
 Versions are compared the way
