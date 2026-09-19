@@ -98,16 +98,21 @@ belongs to the first, so the specific entry goes above the general one:
         changelog: CHANGELOG.md
 ```
 
-**More files that are not a change.** On top of each group's changelog and
-manifests, which never count:
+**More files that are not a change.** Setting `ignore-files` replaces the
+default rather than adding to it, so carry the entries you still want:
 
 ```yaml
     ignore-files: |
+      CHANGELOG.md
       README.md
       LICENSE
       docs/**
       *.test.ts
 ```
+
+Each group's own changelog and manifests never count whatever this says, so
+`CHANGELOG.md` belongs here for a group that keeps one without asking for it
+to be checked.
 
 Every project that failed the rule becomes an annotation on the pull request,
 and the step fails.
@@ -211,9 +216,11 @@ A version that moves is a release even when nothing else did, so a commit that
 bumps and writes nothing up is still caught. A manifest edit that moves no
 version, a dependency range or a script, asks for nothing.
 
-`ignore-files` adds to that list, and applies to every group.
-Each pattern is matched against the end of a path, on segment boundaries, so
-one entry covers a file that appears once per project:
+`ignore-files` adds to that list, applies to every group, and defaults to
+`CHANGELOG.md`, `README.md` and `LICENSE`. Setting it replaces those three
+rather than adding to them. Each pattern is matched against the end of a path,
+on segment boundaries, so one entry covers a file that appears once per
+project:
 
 | pattern | matches |
 | --- | --- |
@@ -247,8 +254,8 @@ new one.
 | --- | --- | --- |
 | `base` | the pull request's base | the ref to compare against, resolved to where the branch forked from it. Read from the event on a pull request, required anywhere else |
 | `projects` | the repository itself | a YAML list of groups, each with a `path`, and optionally a `manifest` and a `changelog` |
-| `ignore-files` | `README.md`, `LICENSE` | more files whose edits are not a change, on top of the changelog and the manifests |
-| `case-sensitive` | `false` | match `ignore-files` exactly rather than ignoring case |
+| `ignore-files` | `CHANGELOG.md`, `README.md`, `LICENSE` | more files whose edits are not a change, on top of each group's changelog and manifests. Setting it replaces the default |
+| `case-sensitive` | `false` | match those patterns exactly rather than ignoring case, the group's changelog and manifests included |
 
 The action reports through `@actions/core`: one `info` line per project that
 recorded its new version, and one `error` annotation per project that did not,
