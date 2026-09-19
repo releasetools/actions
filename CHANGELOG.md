@@ -3,6 +3,17 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.2.0 - 2026-09-19
+
+### Added
+
+`changelog-section` hands one version's changelog section to whatever
+publishes the release, as `notes`, with `found` saying whether there was a
+section at all. It reads the heading the way `release-guard` reads it, out of
+the same module, so the entry a pull request was made to write is the entry
+the release publishes. It never fails on a missing section: a release workflow
+wants to stop there and a draft might not, so the caller decides.
+
 ## 0.1.1 - 2026-09-19
 
 Neither action changed.
@@ -19,8 +30,8 @@ what somebody pinned to it. The floating major still moves.
 
 `release-guard` fails a pull request when a project changed without
 recording a release. Every project whose source moved since the branch
-forked has to carry a higher version, and, where `check-changelog` names
-one, a changelog section claiming that version.
+forked has to carry a higher version, and, where a group names a changelog,
+a section claiming that version.
 
 A project is any directory with its own version. `projects` declares them
 in groups, each saying which manifests and changelog govern which paths,

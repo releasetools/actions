@@ -8,6 +8,12 @@ Each action lives in its own subdirectory with an `action.yml`, TypeScript
 source, tests, and a user-facing README. The root `package.json` holds the shared
 build and test toolchain.
 
+`lib/` is what more than one action needs: `lib/src/changelog.ts` is the single
+reader behind `release-guard` asking whether a release is written down and
+`changelog-section` handing over the lines. Two readers would be two answers to
+one question. Nothing lands there until a second action needs it, and nothing
+in `lib/` is published: each action bundles what it imports.
+
 Source lives on `main`. Generated `dist/` bundles are gitignored there and are
 built fresh by the release workflow.
 
@@ -46,9 +52,9 @@ source, tests, dependencies, and CI configuration.
 Every release is described in `CHANGELOG.md` before it is cut. The workflow
 refuses a version the changelog has no section for, and publishes that same
 section as the release notes, so the file and the release page cannot say
-different things about one version. `scripts/changelog-section.mjs` is the one
-reader both steps use, and it matches a heading the way `release-guard` does,
-so a changelog that releases is a changelog that passes the check.
+different things about one version. The workflow reads it through the
+`changelog-section` action this repository ships, so the release dogfoods the
+same heading rule `release-guard` applies to every pull request.
 
 To publish, write the section, then dispatch `.github/workflows/release.yml`
 with a version matching `vMAJOR.MINOR.PATCH`. The workflow validates, tests,
