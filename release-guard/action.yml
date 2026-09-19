@@ -1,0 +1,52 @@
+name: 'Release guard'
+description: >-
+  Fail a pull request when a project changed without recording a
+  release. Every project whose source changed since the branch forked
+  must carry a higher manifest version, and, where check-changelog names
+  one, a changelog section for the version it now claims.
+author: 'releasetools'
+branding:
+  icon: 'check-square'
+  color: 'blue'
+
+inputs:
+  base:
+    description: 'Ref the working tree is compared against. On a pull request it is read from the event and nothing needs setting; anywhere else, name one. The comparison is taken from where the branch forked, the diff GitHub shows under Files changed, so a base branch that moved on does not read as this branch changing things. The checkout needs history reaching the fork point, so use fetch-depth: 0.'
+    required: false
+    default: ''
+  projects:
+    description: >-
+      A YAML list of groups, each naming the directories it covers, where
+      those projects declare their version, and the changelog they owe.
+      "path" takes one name or a list, as paths or globs: "./" is the
+      repository itself, "./*" every directory at the top, "packages/*" every
+      one under packages. "manifest" takes one name or a list, and every file
+      a project holds has to declare the same version, while one it does not
+      hold is not its business; left out, it is package.json, pyproject.toml,
+      Cargo.toml or VERSION. "changelog" names the file to check, and left out
+      asks for none. A directory two groups reach belongs to the first. Left
+      empty, the repository itself is the one project.
+
+        projects: |
+          - path: packages/*
+            manifest: package.json
+            changelog: CHANGELOG.md
+          - path: crates/*
+            manifest: Cargo.toml
+    required: false
+    default: ''
+  ignore-files:
+    description: 'Newline-delimited files whose edits do not count as the project changing, on top of the checked changelog and the manifests, which never count whatever this says. Each is matched against the end of a path, so "README.md" matches at every depth and "docs/README.md" only inside a docs. "*" and "?" match within a segment, "**" across them. Set it empty to count every other file.'
+    required: false
+    default: |
+      CHANGELOG.md
+      README.md
+      LICENSE
+  case-sensitive:
+    description: 'Match ignore-files exactly rather than ignoring case.'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
