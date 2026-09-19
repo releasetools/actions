@@ -1,4 +1,5 @@
 import * as core from '@actions/core';
+import { parseProjects } from './config';
 import { baseSha } from './event';
 import { guard, type Rule } from './release';
 import { SKIP_LABEL, skipRequested } from './skip-label';
@@ -19,16 +20,14 @@ export function run(): void {
       return;
     }
 
+    const groups = parseProjects(core.getInput('projects'));
     const { released, errors } = guard({
       root: process.cwd(),
       // A pull request already says what it is against, so the input is an
       // override for the runs that are not one.
       base: core.getInput('base') || baseSha() || '',
-      projects: core.getMultilineInput('projects'),
-      manifests: core.getMultilineInput('manifests'),
-      // Empty is 'ask for no changelog', which is the default, so it goes
-      // through as it stands rather than falling back to a name.
-      checkChangelog: core.getInput('check-changelog'),
+      // Empty means the caller said nothing, which is the repository itself.
+      projects: groups.length > 0 ? groups : undefined,
       ignoreFiles: core.getMultilineInput('ignore-files'),
       // getBooleanInput throws on an empty value, which is what a caller who
       // wrote `case-sensitive: ''` gets. Read it as false and keep the

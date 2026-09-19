@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import type { ProjectGroup } from './config';
 import { ignoreMatcher } from './ignore';
 import { versionFrom } from './version';
 import { type Project, resolveProjects } from './projects';
@@ -21,19 +22,14 @@ export type Git = (cwd: string, args: string[]) => GitResult;
 /** What the caller gets when it says nothing. */
 export const DEFAULTS = {
   /** The repository itself, which is what a single-version repository needs. */
-  projects: ['./'],
+  projects: [{ path: ['./'] }] as readonly ProjectGroup[],
   /**
-   * Where a version is declared, tried in order until one is there. The list
-   * is what an unconfigured repository is most likely to hold, so a project
-   * that keeps its version somewhere else names that file and nothing more.
+   * Where a version is declared, for a group that names no file of its own.
+   * The list is what an unconfigured repository is most likely to hold; every
+   * one a project holds has to agree, and one it does not hold is not its
+   * business.
    */
   manifests: ['package.json', 'pyproject.toml', 'Cargo.toml', 'VERSION'],
-  /**
-   * No changelog is asked for until one is named. Most repositories keep none
-   * per project, and a check that fails every one of them on the day it is
-   * installed is a check nobody installs twice.
-   */
-  checkChangelog: '',
   /**
    * Files whose edits are not a change to the project, on top of the ones a
    * release writes, which are never counted whatever this says. CHANGELOG.md
@@ -47,12 +43,10 @@ export interface CheckOptions {
   root: string;
   /** Ref the working tree is compared against, such as origin/main. */
   base: string;
-  /** Directories to check, as paths or globs. `./` is the repository itself. */
-  projects?: readonly string[];
-  /** Where the version is declared, relative to a project, first one found. */
+  /** Groups of directories, each saying what its projects declare and owe. */
+  projects?: readonly ProjectGroup[];
+  /** Where a version is declared, for a group that names no file of its own. */
   manifests?: readonly string[];
-  /** Changelog to check, relative to a project. Empty asks for none. */
-  checkChangelog?: string;
   /** Files whose edits do not count as the project changing. */
   ignoreFiles?: readonly string[];
   /** Whether those patterns are matched case-sensitively. */
@@ -98,7 +92,6 @@ export function guard(options: CheckOptions): CheckResult {
     base,
     projects = DEFAULTS.projects,
     manifests = DEFAULTS.manifests,
-    checkChangelog = DEFAULTS.checkChangelog,
     ignoreFiles = DEFAULTS.ignoreFiles,
     caseSensitive = false,
     git = spawnGit,
@@ -113,16 +106,6 @@ export function guard(options: CheckOptions): CheckResult {
 
   const root = path.resolve(options.root);
 
-  /*
-   * The files a release writes never count as the change it records. A
-   * changelog entry and a version bump are how a project says what happened,
-   * so counting them would ask for a release whose only content is the
-   * sentence announcing it. They are read, and they decide the verdict; they
-   * just do not raise the question.
-   */
-  const written = [checkChangelog, ...manifests].filter((name) => name.trim() !== '');
-  const ignored = ignoreMatcher([...written, ...ignoreFiles], caseSensitive);
-
   // Where the pull request forked, which is the diff GitHub shows under Files
   // changed. Against a branch tip instead, anything the base gained since the
   // fork reads as this project's change, backwards.
@@ -132,11 +115,11 @@ export function guard(options: CheckOptions): CheckResult {
   const released: string[] = [];
   const errors: Failure[] = [];
 
-  for (const project of resolveProjects(root, projects)) {
-    const manifestPath = manifests
+  for (const project of resolveProjects(root, projects, manifests)) {
+    const present = project.manifests
       .map((candidate) => within(project, candidate))
-      .find((candidate) => fs.existsSync(path.join(root, candidate)));
-    if (manifestPath === undefined && !project.named) {
+      .filter((candidate) => fs.existsSync(path.join(root, candidate)));
+    if (present.length === 0 && !project.named) {
       // A glob turned up a directory that declares no version, so it is a
       // directory rather than a project. `./*` over a repository is a search.
       continue;
@@ -152,51 +135,71 @@ export function guard(options: CheckOptions): CheckResult {
     }
 
     /*
-     * Work, as opposed to the files a release writes. A project with none of
-     * it is still judged when its version moved, because a version that moves
-     * is a release however little came with it, and is exactly where "bump it
-     * and write it up later" hides.
+     * The files a release writes never count as the change it records. A
+     * changelog entry and a version bump are how a project says what
+     * happened, so counting them would ask for a release whose only content
+     * is the sentence announcing it. What is left is work: a project with
+     * none of it is still judged when its version moved, because a version
+     * that moves is a release however little came with it, and is exactly
+     * where "bump it and write it up later" hides.
      */
+    const ignored = ignoreMatcher(
+      [project.changelog, ...project.manifests, ...ignoreFiles].filter(
+        (name) => name.trim() !== '',
+      ),
+      caseSensitive,
+    );
     const material = changed.some((file) => !ignored(file));
 
-    if (manifestPath === undefined) {
+    if (present.length === 0) {
       if (!material) {
         continue;
       }
       errors.push({
         rule: 'setup',
         message:
-          `${project.label} declares no version. Looked for ${manifests.join(', ')}; ` +
+          `${project.label} declares no version. Looked for ${project.manifests.join(', ')}; ` +
           'name the file that holds it.',
       });
       continue;
     }
 
-    let now: string;
-    try {
-      now = versionFrom(manifestPath, fs.readFileSync(path.join(root, manifestPath), 'utf8'));
-    } catch (err) {
+    const declared = versionsIn(root, present);
+    if ('failed' in declared) {
       if (!material) {
         continue;
       }
-      errors.push({ rule: 'setup', message: `${manifestPath} ${message(err)}` });
+      errors.push({ rule: 'setup', message: declared.failed });
       continue;
     }
+    if ('disagreed' in declared) {
+      errors.push({ rule: 'version', message: `${project.label} ${declared.disagreed}` });
+      continue;
+    }
+    const now = declared.version;
 
-    // Absent at the fork point means the project is new, and its first version
-    // is whatever it says.
-    const before = git(root, ['show', `${against}:${manifestPath}`]);
+    // The first of the files it holds that was there at the fork point. None
+    // of them means the project is new, and its first version is what it says.
     let was: string | null = null;
-    if (before.status === 0) {
-      try {
-        was = versionFrom(manifestPath, before.stdout);
-      } catch (err) {
-        if (!material) {
-          continue;
-        }
-        errors.push({ rule: 'setup', message: `${manifestPath} at ${base} ${message(err)}` });
+    let unreadable: string | null = null;
+    for (const file of present) {
+      const before = git(root, ['show', `${against}:${file}`]);
+      if (before.status !== 0) {
         continue;
       }
+      try {
+        was = versionFrom(file, before.stdout);
+      } catch (err) {
+        unreadable = `${file} at ${base} ${message(err)}`;
+      }
+      break;
+    }
+    if (unreadable !== null) {
+      if (!material) {
+        continue;
+      }
+      errors.push({ rule: 'setup', message: unreadable });
+      continue;
     }
 
     const moved = was === null || compareVersions(now, was) > 0;
@@ -220,8 +223,8 @@ export function guard(options: CheckOptions): CheckResult {
       released.push(`${project.label} ${was} -> ${now}`);
     }
 
-    if (checkChangelog !== '') {
-      const complaint = changelogError(root, project, checkChangelog, now);
+    if (project.changelog !== '') {
+      const complaint = changelogError(root, project, project.changelog, now);
       if (complaint) {
         errors.push({ rule: 'changelog', message: complaint });
       }
@@ -284,6 +287,42 @@ function lines(output: string): string[] {
 /** A path inside a project, as the repository sees it. */
 function within(project: Project, relative: string): string {
   return project.path === '' ? relative : `${project.path}/${relative}`;
+}
+
+/**
+ * The version every manifest a project holds agrees on.
+ *
+ * A project that keeps its version in two places has to keep them the same,
+ * because whichever one a client reads is the one that decides whether it
+ * updates. Two answers is not a version.
+ */
+function versionsIn(
+  root: string,
+  present: readonly string[],
+): { version: string } | { failed: string } | { disagreed: string } {
+  const declared: Array<{ file: string; version: string }> = [];
+  for (const file of present) {
+    try {
+      declared.push({
+        file,
+        version: versionFrom(file, fs.readFileSync(path.join(root, file), 'utf8')),
+      });
+    } catch (err) {
+      return { failed: `${file} ${message(err)}` };
+    }
+  }
+
+  const first = declared[0]!;
+  const other = declared.find((entry) => entry.version !== first.version);
+  if (other) {
+    return {
+      disagreed:
+        `declares ${first.version} in ${first.file} and ${other.version} in ${other.file}. ` +
+        'Whichever a client reads is the one that decides whether it updates, so they ' +
+        'have to say the same thing.',
+    };
+  }
+  return { version: first.version };
 }
 
 /** The complaint about a project's changelog, or null when it carries the version. */

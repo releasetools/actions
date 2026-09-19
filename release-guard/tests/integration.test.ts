@@ -38,9 +38,7 @@ describe('guard, against a real repository', () => {
     return guard({
       root,
       base,
-      projects: ['plugins/*'],
-      manifests: ['plugin.json'],
-      checkChangelog: 'CHANGELOG.md',
+      projects: [{ path: ['plugins/*'], manifest: ['plugin.json'], changelog: 'CHANGELOG.md' }],
       ...options,
     });
   }
@@ -177,6 +175,8 @@ describe('guard, against a real repository', () => {
   });
 
   it('refuses a pattern that matches no directory', () => {
-    expect(() => check({ projects: ['nowhere/*'] })).toThrow(/no directory matches nowhere\/\*/);
+    expect(() => check({ projects: [{ path: ['nowhere/*'] }] })).toThrow(
+      /no directory matches nowhere\/\*/,
+    );
   });
 });

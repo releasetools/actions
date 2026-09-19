@@ -25,15 +25,19 @@ event:
   if: github.event_name == 'pull_request'
 ```
 
-That asks each project for a version that moved. For a repository of many, and
-for a changelog to go with it:
+That asks the repository for a version that moved, and nothing else. A
+repository of many projects declares them in groups:
 
 ```yaml
 - uses: releasetools/actions/release-guard@v0
   if: github.event_name == 'pull_request'
   with:
-    projects: packages/*
-    check-changelog: CHANGELOG.md
+    projects: |
+      - path: packages/*
+        manifest: package.json
+        changelog: CHANGELOG.md
+      - path: crates/*
+        manifest: Cargo.toml
 ```
 
 Outside a pull request there is nothing to read, so `base` has to be set.
@@ -41,13 +45,25 @@ Outside a pull request there is nothing to read, so `base` has to be set.
 Every project that failed the rule becomes an annotation on the pull request,
 and the step fails.
 
-## Which projects get checked
+## Declaring the projects
 
-`projects` is a newline-delimited list of directories, as paths or globs.
+`projects` is a YAML list of groups. A repository is rarely one kind of thing,
+and a group says which files govern which directories, so nothing has to be
+guessed.
+
+| key | |
+| --- | --- |
+| `path` | one name or a list, as paths or globs. Required |
+| `manifest` | one name or a list. Every file a project holds has to declare the same version; one it does not hold is not its business. Left out: `package.json`, `pyproject.toml`, `Cargo.toml`, `VERSION` |
+| `changelog` | the file to check. Left out, that group owes none |
+
+Left empty, the whole input, the repository itself is the one project.
+
+### What a path matches
 
 | pattern | |
 | --- | --- |
-| `./` | the repository itself, one project. The default |
+| `./` | the repository itself, one project |
 | `./*` | every directory at the top, hidden ones excluded |
 | `packages/*` | every directory under `packages` |
 | `packages/web` | that one |
@@ -57,12 +73,15 @@ naming a directory costs a read of its parent. A pattern that matches no
 directory fails the run: checking nothing is the one outcome that looks like
 success and is not.
 
-A directory only counts as a project if it holds one of the `manifests`. Naming
-one that does not is an error, because the name was a claim; a glob that turns
-up one walks past it, because a glob is a search, and `./*` over a repository
-with a `docs/` has not found anything wrong. So `packages/*` reads as "every
-package under packages", and `packages/web` as "this, and it had better be
-one".
+A directory only counts as a project if it holds one of its group's manifests.
+Naming one that does not is an error, because the name was a claim; a glob that
+turns one up walks past it, because a glob is a search, and `./*` over a
+repository with a `docs/` has not found anything wrong. So `packages/*` reads
+as "every package under packages", and `packages/web` as "this, and it had
+better be one".
+
+A directory two groups both reach belongs to the first, so a group naming one
+project can sit above the group that globs its neighbours.
 
 ## The rule
 
@@ -70,11 +89,11 @@ For every project, in path order:
 
 1. Ask git what changed under it since the branch forked, and what it holds
    that git has never seen. Nothing at all, nothing to check.
-2. Read the version from the first of `manifests` the project holds, and the
-   same file at the fork point. Absent there means the project is new, so no
-   comparison is asked of it.
-3. Set aside the files a release writes: the changelog, the manifests, and
-   whatever `ignore-files` names. If nothing else moved and the version did
+2. Read the version from every manifest the project holds, which all have to
+   agree, and from the first of them that was there at the fork point. None of
+   them there means the project is new, so no comparison is asked of it.
+3. Set aside the files a release writes: its group's changelog and manifests,
+   and whatever `ignore-files` names. If nothing else moved and the version did
    not either, there is no release here and nothing to check.
 4. The version must be strictly greater than at the fork point. Equal or lower
    fails, and that project is not checked further.
@@ -99,29 +118,13 @@ A line matching `^##\s+\[?v?<version>\]?(\s|$)`, anywhere in the file.
 
 ### Where the version comes from
 
-`manifests` lists the files that may declare it, relative to a project, tried
-in order until one is there. It is a list of candidates for each project, not a
-set of files each project must have: a repository of a Rust crate beside a
-Python package names both, and each project uses whichever it holds. The first
-one found wins, so a project holding two is read from whichever comes first in
-the list, and the other is never read.
-
-The whole list is excluded from change detection, not only the one that won, so
-a project that carries a `package.json` it does not release from is not made to
-release by an edit to it.
+A group's `manifest` list is the set of files that may declare it. Every one a
+project holds has to say the same thing, because whichever a client reads is
+the one that decides whether it updates, and two answers is not a version. One
+the project does not hold is ignored, so a list can cover a group whose members
+differ.
 
 The kind is read from the name, so a project names its file and nothing else:
-
-| file | where the version is |
-| --- | --- |
-| any `.json` | the top-level `version` |
-| any `.toml` | the `version` of its `package`, `project`, `tool.poetry` or `workspace.package` table, never a dependency's |
-| `.yaml`, `.yml` | a top-level `version:`, never an indented one |
-| `.properties` | a `version=` line, which is where Gradle keeps it |
-| anything else | the file is the version and nothing else, as `VERSION` holds it |
-
-XML is refused rather than read: a `<version>` in a `pom.xml` can be the
-project's or its parent's, and a wrong version is worse than a plain refusal.
 
 ### Comparing versions
 
@@ -141,7 +144,7 @@ A version that moves is a release even when nothing else did, so a commit that
 bumps and writes nothing up is still caught. A manifest edit that moves no
 version, a dependency range or a script, asks for nothing.
 
-`ignore-files` adds to that list, and defaults to `README.md` and `LICENSE`.
+`ignore-files` adds to that list, and applies to every group.
 Each pattern is matched against the end of a path, on segment boundaries, so
 one entry covers a file that appears once per project:
 
@@ -162,10 +165,10 @@ this decides what counts as changing, not what a release has to say.
 
 ### Asking for a changelog
 
-`check-changelog` names the file, usually `CHANGELOG.md`. Empty, which is the
-default, asks for none, and the version half of the rule stands on its own.
-Most repositories keep no changelog per project, and a check that fails every
-one of them on the day it is installed is a check nobody installs twice.
+A group's `changelog` names the file, usually `CHANGELOG.md`. Left out, that
+group owes none, which is the default everywhere. Most repositories keep no
+changelog per project, and a check that fails every one of them on the day it
+is installed is a check nobody installs twice.
 
 The reverse is not offered. A changelog check without the version is satisfied
 by an entry written a year ago, since nothing makes the section it looks for a
@@ -176,9 +179,7 @@ new one.
 | input | default | |
 | --- | --- | --- |
 | `base` | the pull request's base | the ref to compare against, resolved to where the branch forked from it. Read from the event on a pull request, required anywhere else |
-| `projects` | `./` | newline-delimited directories to check, as paths or globs |
-| `manifests` | `package.json`, `pyproject.toml`, `Cargo.toml`, `VERSION` | newline-delimited files that may declare the version, first one found wins |
-| `check-changelog` | none | the changelog to check, relative to a project. Empty asks for none |
+| `projects` | the repository itself | a YAML list of groups, each with a `path`, and optionally a `manifest` and a `changelog` |
 | `ignore-files` | `README.md`, `LICENSE` | more files whose edits are not a change, on top of the changelog and the manifests |
 | `case-sensitive` | `false` | match `ignore-files` exactly rather than ignoring case |
 

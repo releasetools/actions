@@ -15,19 +15,24 @@ inputs:
     required: false
     default: ''
   projects:
-    description: 'Newline-delimited directories to check, as paths or globs. "./" is the repository itself, "./*" every directory at the top, "packages/*" every one under packages. A pattern matching no directory fails the run rather than checking nothing.'
-    required: false
-    default: './'
-  manifests:
-    description: 'Newline-delimited files that may declare the version, relative to a project directory, tried in order until one is there. The kind is read from the name: any .json takes its top-level "version", .toml the version of its package, project or tool.poetry table, .yaml and .yml a top-level "version:", .properties a "version=" line, and anything else is a file holding the version and nothing else. XML is refused rather than guessed at.'
-    required: false
-    default: |
-      package.json
-      pyproject.toml
-      Cargo.toml
-      VERSION
-  check-changelog:
-    description: 'Changelog to check, relative to a project directory, usually CHANGELOG.md. Empty, the default, asks for none, and the version half of the rule stands on its own.'
+    description: >-
+      A YAML list of groups, each naming the directories it covers, where
+      those projects declare their version, and the changelog they owe.
+      "path" takes one name or a list, as paths or globs: "./" is the
+      repository itself, "./*" every directory at the top, "packages/*" every
+      one under packages. "manifest" takes one name or a list, and every file
+      a project holds has to declare the same version, while one it does not
+      hold is not its business; left out, it is package.json, pyproject.toml,
+      Cargo.toml or VERSION. "changelog" names the file to check, and left out
+      asks for none. A directory two groups reach belongs to the first. Left
+      empty, the repository itself is the one project.
+
+        projects: |
+          - path: packages/*
+            manifest: package.json
+            changelog: CHANGELOG.md
+          - path: crates/*
+            manifest: Cargo.toml
     required: false
     default: ''
   ignore-files:

@@ -58,8 +58,13 @@ repository itself to every package in a workspace.
 - uses: releasetools/actions/release-guard@v0
   if: github.event_name == 'pull_request'
   with:
-    # Omit for a repository that is one versioned thing.
-    projects: packages/*
+    # Omit entirely for a repository that is one versioned thing.
+    projects: |
+      - path: packages/*
+        manifest: package.json
+        changelog: CHANGELOG.md
+      - path: crates/*
+        manifest: Cargo.toml
 ```
 
 A pull request already says what it is against, so there is nothing else to
@@ -67,8 +72,8 @@ configure.
 
 Each project that failed the rule becomes an annotation on the pull request. It
 reads a version out of `package.json`, `pyproject.toml`, `Cargo.toml`, a
-`VERSION` file or whatever else the project names, and it counts files that are
-not committed yet as well as the diff.
+`VERSION` file or whatever else a group names, and it counts files that are not
+committed yet as well as the diff.
 
 See the [`release-guard` guide](release-guard/) for project globs, the rule,
 the inputs, and the exit codes.

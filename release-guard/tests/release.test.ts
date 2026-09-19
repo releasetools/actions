@@ -79,9 +79,7 @@ describe('guard', () => {
     return guard({
       root,
       base: 'origin/main',
-      projects: ['plugins/*'],
-      manifests: ['plugin.json'],
-      checkChangelog: 'CHANGELOG.md',
+      projects: [{ path: ['plugins/*'], manifest: ['plugin.json'], changelog: 'CHANGELOG.md' }],
       ...options,
     });
   }
@@ -246,7 +244,9 @@ describe('guard', () => {
     fs.rmSync(path.join(root, 'plugins/docket/plugin.json'));
 
     const result = check(root, {
-      projects: ['plugins/docket', 'plugins/scaffold'],
+      projects: [
+        { path: ['plugins/docket', 'plugins/scaffold'], manifest: ['plugin.json'] },
+      ],
       git: fakeGit({
         changed: ['docket', 'scaffold'],
         versions: { docket: '0.1.0', scaffold: '2.3.3' },
@@ -297,7 +297,13 @@ describe('which projects get checked', () => {
         return ok('');
       }
       if (args[0] === 'show') {
-        return ok(JSON.stringify({ version: '0.1.0' }));
+        // Whatever the file at the fork point is, it was at 0.1.0, written
+        // the way that kind of file writes it.
+        return ok(
+          args[1]!.endsWith('.toml')
+            ? '[package]\nversion = "0.1.0"\n'
+            : JSON.stringify({ version: '0.1.0' }),
+        );
       }
       return { status: 1, stdout: '', stderr: `unexpected: ${args.join(' ')}` };
     };
@@ -324,7 +330,7 @@ describe('which projects get checked', () => {
     const result = guard({
       root,
       base: 'origin/main',
-      projects: ['./*'],
+      projects: [{ path: ['./*'] }],
       git: everythingChanged(),
     });
 
@@ -338,7 +344,7 @@ describe('which projects get checked', () => {
     const result = guard({
       root,
       base: 'origin/main',
-      projects: ['./*'],
+      projects: [{ path: ['./*'] }],
       git: everythingChanged(),
     });
 
@@ -351,7 +357,7 @@ describe('which projects get checked', () => {
     const result = guard({
       root,
       base: 'origin/main',
-      projects: ['packages/*', 'tools/build'],
+      projects: [{ path: ['packages/*', 'tools/build'] }],
       git: everythingChanged(),
     });
 
@@ -368,10 +374,50 @@ describe('which projects get checked', () => {
     const result = guard({
       root,
       base: 'origin/main',
-      projects: ['packages/*', 'packages/web'],
+      projects: [{ path: ['packages/*', 'packages/web'] }],
       git: everythingChanged(),
     });
 
+    expect(result.released).toEqual(['packages/web 0.1.0 -> 0.2.0']);
+  });
+
+  it('gives each group its own manifest and changelog', () => {
+    const root = repository('packages/web', 'crates/api');
+    fs.writeFileSync(
+      path.join(root, 'crates/api/Cargo.toml'),
+      '[package]\nname = "api"\nversion = "0.2.0"\n',
+    );
+    fs.rmSync(path.join(root, 'crates/api/package.json'));
+    fs.rmSync(path.join(root, 'crates/api/CHANGELOG.md'));
+
+    const result = guard({
+      root,
+      base: 'origin/main',
+      projects: [
+        { path: ['packages/*'], manifest: ['package.json'], changelog: 'CHANGELOG.md' },
+        { path: ['crates/*'], manifest: ['Cargo.toml'] },
+      ],
+      git: everythingChanged(),
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.released).toEqual(['crates/api 0.1.0 -> 0.2.0', 'packages/web 0.1.0 -> 0.2.0']);
+  });
+
+  it('gives a directory two groups reach to the first of them', () => {
+    const root = repository('packages/web');
+
+    const result = guard({
+      root,
+      base: 'origin/main',
+      projects: [
+        { path: ['packages/web'], manifest: ['package.json'] },
+        { path: ['packages/*'], manifest: ['Cargo.toml'] },
+      ],
+      git: everythingChanged(),
+    });
+
+    expect(result.errors).toEqual([]);
     expect(result.released).toEqual(['packages/web 0.1.0 -> 0.2.0']);
   });
 
@@ -379,7 +425,7 @@ describe('which projects get checked', () => {
     const root = repository('one');
 
     expect(() =>
-      guard({ root, base: 'origin/main', projects: ['nowhere/*'], git: everythingChanged() }),
+      guard({ root, base: 'origin/main', projects: [{ path: ['nowhere/*'] }], git: everythingChanged() }),
     ).toThrow(/no directory matches nowhere\/\*/);
   });
 
@@ -421,7 +467,13 @@ describe('which files count as a change', () => {
   }
 
   function check(root: string, git: Git, options: Record<string, unknown> = {}) {
-    return guard({ root, base: 'origin/main', git, checkChangelog: 'CHANGELOG.md', ...options });
+    return guard({
+      root,
+      base: 'origin/main',
+      git,
+      projects: [{ path: ['./'], changelog: 'CHANGELOG.md' }],
+      ...options,
+    });
   }
 
   afterEach(() => {
@@ -505,6 +557,45 @@ describe('which files count as a change', () => {
     expect(check(repository(), touched(['package.json']))).toEqual({ errors: [], released: [] });
   });
 
+  it('asks every manifest a project holds to agree', () => {
+    const root = repository();
+    fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ version: '0.2.0' })}\n`);
+    fs.writeFileSync(path.join(root, 'VERSION'), '0.3.0\n');
+
+    const result = check(root, touched(['src/thing.ts']), {
+      projects: [{ path: ['./'], manifest: ['package.json', 'VERSION'] }],
+    });
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.rule).toBe('version');
+    expect(result.errors[0]?.message).toContain('declares 0.2.0 in package.json and 0.3.0 in VERSION');
+  });
+
+  it('passes when the two it holds say the same thing', () => {
+    const root = repository();
+    fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ version: '0.2.0' })}\n`);
+    fs.writeFileSync(path.join(root, 'VERSION'), '0.2.0\n');
+
+    const result = check(root, touched(['src/thing.ts']), {
+      projects: [{ path: ['./'], manifest: ['package.json', 'VERSION'] }],
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.released).toEqual([`${path.basename(root)} 0.1.0 -> 0.2.0`]);
+  });
+
+  it('ignores a manifest the project does not hold', () => {
+    const root = repository();
+    fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ version: '0.2.0' })}\n`);
+
+    const result = check(root, touched(['src/thing.ts']), {
+      projects: [{ path: ['./'], manifest: ['Cargo.toml', 'package.json', 'VERSION'] }],
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.released).toEqual([`${path.basename(root)} 0.1.0 -> 0.2.0`]);
+  });
+
   it('asks for no changelog until one is named', () => {
     const root = repository();
     fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ version: '0.2.0' })}\n`);
@@ -521,14 +612,14 @@ describe('which files count as a change', () => {
     fs.writeFileSync(path.join(root, 'package.json'), `${JSON.stringify({ version: '0.2.0' })}\n`);
     fs.rmSync(path.join(root, 'CHANGELOG.md'));
 
-    const result = check(root, touched(['src/thing.ts']), { checkChangelog: '' });
+    const result = check(root, touched(['src/thing.ts']), { projects: [{ path: ['./'] }] });
 
     expect(result.errors).toEqual([]);
     expect(result.released).toEqual([`${path.basename(root)} 0.1.0 -> 0.2.0`]);
   });
 
   it('still asks for the version when the caller keeps no changelog', () => {
-    const result = check(repository(), touched(['src/thing.ts']), { checkChangelog: '' });
+    const result = check(repository(), touched(['src/thing.ts']), { projects: [{ path: ['./'] }] });
 
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]?.rule).toBe('version');

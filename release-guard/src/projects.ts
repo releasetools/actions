@@ -1,9 +1,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import type { ProjectGroup } from './config';
 import { isGlob, normalise, segmentPattern } from './glob';
 import { UsageError } from './usage-error';
 
-/** One versioned thing in the repository. */
+/** One versioned thing in the repository, and what its group asks of it. */
 export interface Project {
   /** Repository-relative directory, empty for the repository root. */
   path: string;
@@ -19,10 +20,14 @@ export interface Project {
    * that walks past a docs directory has not found anything wrong.
    */
   named: boolean;
+  /** Files that may declare the version. Every one it holds must agree. */
+  manifests: readonly string[];
+  /** Changelog to check, or empty for none. */
+  changelog: string;
 }
 
 /**
- * Turns the caller's patterns into the directories to check.
+ * Turns the groups into the directories to check.
  *
  * `./` is the repository itself, one project, which is what a repository with
  * a single version needs. `./*` is every directory at the top, `packages/*`
@@ -32,33 +37,52 @@ export interface Project {
  *
  * A pattern matching nothing is an error rather than an empty pass. Silently
  * checking no projects is the one outcome that looks like success and is not.
+ * A directory two groups both reach belongs to the first of them, so a group
+ * naming one project can sit above the group that globs its neighbours.
  */
-export function resolveProjects(root: string, patterns: readonly string[]): Project[] {
-  const wanted = patterns.map((pattern) => pattern.trim()).filter((pattern) => pattern !== '');
-  if (wanted.length === 0) {
+export function resolveProjects(
+  root: string,
+  groups: readonly ProjectGroup[],
+  fallbackManifests: readonly string[],
+): Project[] {
+  if (groups.length === 0) {
     throw new UsageError('no project to check; name one, or use ./ for the repository itself');
   }
 
-  const found = new Map<string, boolean>();
-  for (const pattern of wanted) {
-    const matches = expand(root, pattern);
-    if (matches.length === 0) {
-      throw new UsageError(`no directory matches ${pattern}`);
+  const found = new Map<string, Project>();
+  for (const group of groups) {
+    const patterns = group.path.map((pattern) => pattern.trim()).filter((p) => p !== '');
+    if (patterns.length === 0) {
+      throw new UsageError('no project to check; name one, or use ./ for the repository itself');
     }
-    const named = !isGlob(pattern);
-    for (const match of matches) {
-      found.set(match, (found.get(match) ?? false) || named);
+
+    for (const pattern of patterns) {
+      const matches = expand(root, pattern);
+      if (matches.length === 0) {
+        throw new UsageError(`no directory matches ${pattern}`);
+      }
+      const named = !isGlob(pattern);
+      for (const relative of matches) {
+        const already = found.get(relative);
+        if (already) {
+          // The first group governs; a later one can still turn a found
+          // directory into a named one, which is the stricter reading.
+          found.set(relative, { ...already, named: already.named || named });
+          continue;
+        }
+        found.set(relative, {
+          path: relative,
+          label: relative === '' ? path.basename(root) : relative,
+          directory: relative === '' ? root : path.join(root, relative),
+          named,
+          manifests: group.manifest ?? fallbackManifests,
+          changelog: group.changelog ?? '',
+        });
+      }
     }
   }
 
-  return [...found.keys()]
-    .sort()
-    .map((relative) => ({
-      path: relative,
-      label: relative === '' ? path.basename(root) : relative,
-      directory: relative === '' ? root : path.join(root, relative),
-      named: found.get(relative) ?? false,
-    }));
+  return [...found.values()].sort((one, two) => (one.path < two.path ? -1 : 1));
 }
 
 function expand(root: string, pattern: string): string[] {
