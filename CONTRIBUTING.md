@@ -33,13 +33,24 @@ README, and `dist/` bundle. It publishes that tree to `release/<major>` using
 
 Two kinds of repository tag point at the published tree:
 
-- An exact version such as `v0.0.6` identifies one release.
+- An exact version such as `v0.1.0` identifies one release and is written
+  once. Releasing a version that already has a tag fails, so what somebody
+  pinned cannot change underneath them. A run that died after tagging needs
+  the tag deleted by hand, which is the deliberate act it should be.
 - A floating major such as `v0` moves to the latest release on that major line.
 
 Consumers select an action by subdirectory and version, for example
 `releasetools/actions/signed-push@v0`. The published tree intentionally excludes
 source, tests, dependencies, and CI configuration.
 
-To publish, dispatch `.github/workflows/release.yml` with a version matching
-`vMAJOR.MINOR.PATCH`. The workflow validates, tests, builds, publishes, and moves
-both tags.
+Every release is described in `CHANGELOG.md` before it is cut. The workflow
+refuses a version the changelog has no section for, and publishes that same
+section as the release notes, so the file and the release page cannot say
+different things about one version. `scripts/changelog-section.mjs` is the one
+reader both steps use, and it matches a heading the way `release-guard` does,
+so a changelog that releases is a changelog that passes the check.
+
+To publish, write the section, then dispatch `.github/workflows/release.yml`
+with a version matching `vMAJOR.MINOR.PATCH`. The workflow validates, tests,
+builds, publishes the tree, moves the floating major, writes the exact tag, and
+creates the release.

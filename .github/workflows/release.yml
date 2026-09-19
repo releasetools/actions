@@ -37,6 +37,25 @@ jobs:
         with:
           fetch-depth: 0
 
+      # An exact version identifies one release, so it is written once. The
+      # floating major is the tag that moves. A run that died after tagging
+      # needs the tag deleted by hand, which is the deliberate act it should
+      # be rather than a silent rewrite of what somebody pinned.
+      - name: Refuse a version that already exists, or that nothing describes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${VERSION}" >/dev/null 2>&1; then
+            echo "::error::${VERSION} is already released. Bump the version."
+            exit 1
+          fi
+          if ! node scripts/changelog-section.mjs "${VERSION#v}" >/dev/null; then
+            echo "::error::Write CHANGELOG.md's ${VERSION#v} section, then release."
+            exit 1
+          fi
+
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
@@ -152,6 +171,20 @@ jobs:
           force-tags: 'true'
           token: ${{ github.token }}
 
+      # The notes are the changelog's own section, so the release page and the
+      # file cannot say different things about the same version.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          node scripts/changelog-section.mjs "${VERSION#v}" > notes.md
+          gh release create "$VERSION" \
+            --title "$VERSION" \
+            --notes-file notes.md \
+            --verify-tag
+
       - name: Workflow summary
         env:
           VERSION: ${{ inputs.version }}
@@ -169,4 +202,6 @@ jobs:
             echo "Tags pointing at this commit:"
             echo "- [\`${VERSION}\`](${SERVER}/${REPO}/tree/${VERSION})"
             echo "- [\`${MAJOR}\`](${SERVER}/${REPO}/tree/${MAJOR})"
+            echo
+            echo "[Release notes](${SERVER}/${REPO}/releases/tag/${VERSION})"
           } >> "$GITHUB_STEP_SUMMARY"
