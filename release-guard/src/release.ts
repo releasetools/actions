@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { ProjectGroup } from './config';
 import { carries } from '../../lib/src/changelog';
+import { compare, parse, type Semver } from '../../lib/src/semver';
 import { ignoreMatcher } from './ignore';
 import { inside, realRoot } from './inside';
 import { versionFrom } from './version';
@@ -222,7 +223,31 @@ export function guard(options: CheckOptions): CheckResult {
       continue;
     }
 
-    const moved = was === null || compareVersions(now, was) > 0;
+    const claimed = parse(now);
+    if (claimed === null) {
+      errors.push({
+        rule: 'version',
+        message:
+          `${project.label} declares ${now}, which is not a semantic version. ` +
+          'A range, a lockfile and a resolver all read one, and none of them can ' +
+          'read this.',
+      });
+      continue;
+    }
+
+    let previous: Semver | null = null;
+    if (was !== null) {
+      previous = parse(was);
+      if (previous === null) {
+        errors.push({
+          rule: 'version',
+          message: `${project.label} declared ${was} at ${base}, which is not a semantic version.`,
+        });
+        continue;
+      }
+    }
+
+    const moved = previous === null || compare(claimed, previous) > 0;
     if (!material && !moved) {
       // Only the files a release writes moved, and no release came with them.
       continue;
@@ -376,31 +401,6 @@ function changelogError(
     `${relative} has no section for ${version}. Add one above the older releases: ` +
     'what changed, and the reason not to act that a later change cannot get from the diff.'
   );
-}
-
-/**
- * Numeric, segment by segment, the way a client decides whether an update
- * exists. A segment that is not a number counts as zero, so a suffix such as
- * -rc1 never reads as an increase on its own.
- */
-function compareVersions(left: string, right: string): number {
-  const a = segments(left);
-  const b = segments(right);
-  for (let index = 0; index < Math.max(a.length, b.length); index++) {
-    const one = a[index] ?? 0;
-    const two = b[index] ?? 0;
-    if (one !== two) {
-      return one < two ? -1 : 1;
-    }
-  }
-  return 0;
-}
-
-function segments(version: string): number[] {
-  return version.split('.').map((part) => {
-    const value = Number.parseInt(part, 10);
-    return Number.isNaN(value) ? 0 : value;
-  });
 }
 
 function message(err: unknown): string {

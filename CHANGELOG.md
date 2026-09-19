@@ -5,6 +5,17 @@ first.
 
 ## 0.2.0 - 2026-09-19
 
+### Changed
+
+`release-guard` compares versions the way
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html) says to, so
+`0.2.0-rc.1` now sorts after `0.1.0` and before `0.2.0` where it used to read
+as equal to `0.2.0` and a bump to a candidate looked like no bump at all.
+Build metadata after a `+` is ignored, as the specification says. A version
+that is not a semantic one, `1.0` or `v1.2`, is now a failure naming it
+rather than a guess: a range, a lockfile and a resolver all read a version,
+and none of them can read those.
+
 ### Added
 
 `changelog-section` hands one version's changelog section to whatever
