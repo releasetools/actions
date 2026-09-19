@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import { load } from 'js-yaml';
 import { UsageError } from './usage-error';
 
@@ -66,22 +67,49 @@ function group(entry: unknown, where: string): ProjectGroup {
     }
   }
 
-  const path = strings(record['path'], `${where} path`);
-  if (path.length === 0) {
+  const paths = strings(record['path'], `${where} path`);
+  if (paths.length === 0) {
     throw new UsageError(`${where} needs a path`);
   }
+  paths.forEach((value) => within(value, `${where} path`));
 
   const manifest = strings(record['manifest'], `${where} manifest`);
+  manifest.forEach((value) => within(value, `${where} manifest`));
+
   const changelog = record['changelog'];
   if (changelog !== undefined && typeof changelog !== 'string') {
     throw new UsageError(`${where} changelog must be the name of one file`);
   }
+  if (typeof changelog === 'string' && changelog.trim() !== '') {
+    within(changelog.trim(), `${where} changelog`);
+  }
 
   return {
-    path,
+    path: paths,
     ...(manifest.length > 0 ? { manifest } : {}),
     ...(typeof changelog === 'string' && changelog.trim() !== '' ? { changelog } : {}),
   };
+}
+
+/**
+ * Refuses a path that leaves the repository before anything acts on it.
+ *
+ * Everything here is read relative to the checkout, and a workflow that wires
+ * this input from somewhere less trusted than the workflow file should not be
+ * one step from reading the runner's home directory.
+ */
+function within(value: string, where: string): void {
+  if (path.isAbsolute(value) || /^[A-Za-z]:/.test(value)) {
+    throw new UsageError(`${where} must be inside the repository, so not an absolute path`);
+  }
+  if (
+    path
+      .normalize(value)
+      .split(/[\\/]/)
+      .some((segment) => segment === '..')
+  ) {
+    throw new UsageError(`${where} must be inside the repository, so no ..`);
+  }
 }
 
 /** One name or several, since a group with a single path should not need a list. */

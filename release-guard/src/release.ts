@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { ProjectGroup } from './config';
 import { ignoreMatcher } from './ignore';
+import { inside, realRoot } from './inside';
 import { versionFrom } from './version';
 import { type Project, resolveProjects } from './projects';
 import { UsageError } from './usage-error';
@@ -104,7 +105,7 @@ export function guard(options: CheckOptions): CheckResult {
     );
   }
 
-  const root = path.resolve(options.root);
+  const root = realRoot(options.root);
 
   // Where the pull request forked, which is the diff GitHub shows under Files
   // changed. Against a branch tip instead, anything the base gained since the
@@ -116,9 +117,27 @@ export function guard(options: CheckOptions): CheckResult {
   const errors: Failure[] = [];
 
   for (const project of resolveProjects(root, projects, manifests)) {
-    const present = project.manifests
-      .map((candidate) => within(project, candidate))
-      .filter((candidate) => fs.existsSync(path.join(root, candidate)));
+    if (inside(root, project.path === '' ? '.' : project.path) === 'outside') {
+      errors.push({ rule: 'setup', message: `${project.label} ${ESCAPED}` });
+      continue;
+    }
+
+    const present: string[] = [];
+    let escaped: string | null = null;
+    for (const candidate of project.manifests.map((name) => within(project, name))) {
+      const found = inside(root, candidate);
+      if (found === 'outside') {
+        escaped = candidate;
+        break;
+      }
+      if (found !== 'absent') {
+        present.push(candidate);
+      }
+    }
+    if (escaped !== null) {
+      errors.push({ rule: 'setup', message: `${escaped} ${ESCAPED}` });
+      continue;
+    }
     if (present.length === 0 && !project.named) {
       // A glob turned up a directory that declares no version, so it is a
       // directory rather than a project. `./*` over a repository is a search.
@@ -290,6 +309,12 @@ function within(project: Project, relative: string): string {
 }
 
 /**
+ * What a path that leaves the checkout is told, without naming where it went,
+ * since saying so is most of what following it would have given away.
+ */
+const ESCAPED = 'resolves outside the repository, so it is not read';
+
+/**
  * The version every manifest a project holds agrees on.
  *
  * A project that keeps its version in two places has to keep them the same,
@@ -333,14 +358,17 @@ function changelogError(
   version: string,
 ): string | null {
   const relative = within(project, changelog);
-  const file = path.join(root, relative);
-  if (!fs.existsSync(file)) {
+  const found = inside(root, relative);
+  if (found === 'outside') {
+    return `${relative} ${ESCAPED}`;
+  }
+  if (found === 'absent') {
     return (
       `${project.label} is at ${version} and has no ${changelog}. A release writes itself ` +
       `into ${relative}, newest first: what changed, and the choices behind it.`
     );
   }
-  if (carries(fs.readFileSync(file, 'utf8'), version)) {
+  if (carries(fs.readFileSync(found.real, 'utf8'), version)) {
     return null;
   }
   return (

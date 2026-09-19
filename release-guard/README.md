@@ -220,6 +220,24 @@ fails once with `Release check failed. See the annotations.`
 A run that could not start at all fails the same way with what was wrong:
 nothing to compare against, or a `projects` pattern matching no directory.
 
+## What it will not read
+
+The working tree on a pull request is written by whoever opened it, so a file
+this action reads can be a link to somewhere else on the runner. It reads
+versions out of files and prints them, which is enough to publish whatever it
+found, so every path is resolved through its links and checked against the
+repository root before anything is opened. One that lands outside is refused,
+and the message says so without naming where it went.
+
+`path`, `manifest` and `changelog` are refused at the same door: an absolute
+path, or one with a `..` that leaves the repository, fails the run rather than
+being resolved. A link that stays inside is followed as normal, so a project
+whose version lives in a shared file still works.
+
+A glob never follows a symlinked directory, so `packages/*` matches real
+directories only. YAML tags that ask for code, `!!js/function` and its family,
+are not in the schema this parses with and are refused as unknown.
+
 ## What it will not do
 
 It never reads, writes or infers a version, and it never edits a changelog.

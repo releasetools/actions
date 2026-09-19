@@ -62,6 +62,35 @@ describe('parseProjects', () => {
     );
   });
 
+  it('refuses a path, a manifest or a changelog that climbs out', () => {
+    expect(() => parseProjects('- path: ../elsewhere')).toThrow(/path must be inside/);
+    expect(() => parseProjects('- path: ./\n  manifest: ../../etc/passwd')).toThrow(
+      /manifest must be inside/,
+    );
+    expect(() => parseProjects('- path: ./\n  changelog: a/../../b.md')).toThrow(
+      /changelog must be inside/,
+    );
+  });
+
+  it('refuses an absolute path', () => {
+    expect(() => parseProjects('- path: /etc')).toThrow(/not an absolute path/);
+    expect(() => parseProjects('- path: ./\n  manifest: /etc/passwd')).toThrow(
+      /not an absolute path/,
+    );
+  });
+
+  it('takes a .. that never leaves the name it is in', () => {
+    expect(parseProjects('- path: ./\n  manifest: a..b.json')).toEqual([
+      { path: ['./'], manifest: ['a..b.json'] },
+    ]);
+  });
+
+  it('refuses the YAML tags that ask for code', () => {
+    expect(() => parseProjects('- path: !!js/function "function () {}"')).toThrow(
+      /not valid YAML/,
+    );
+  });
+
   it('says where YAML broke', () => {
     expect(() => parseProjects('- path: [unclosed')).toThrow(/is not valid YAML/);
   });

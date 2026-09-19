@@ -170,6 +170,53 @@ describe('guard, against a real repository', () => {
     expect(result.released).toEqual(['plugins/docket 0.1.0 -> 0.2.0']);
   });
 
+  it('refuses a manifest that is a link out of the repository', () => {
+    const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'outside-')));
+    fs.writeFileSync(path.join(outside, 'SECRET'), 'a-token-on-the-runner\n');
+    fs.symlinkSync(path.join(outside, 'SECRET'), path.join(root, 'plugins/docket/VERSION'));
+    commit('a pull request adds a link');
+
+    const { errors, released } = check({
+      projects: [{ path: ['plugins/*'], manifest: ['VERSION', 'plugin.json'] }],
+    });
+
+    expect(released).toEqual([]);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain('resolves outside the repository');
+    // What it found is the thing worth not saying.
+    expect(errors[0]?.message).not.toContain('a-token-on-the-runner');
+    expect(errors[0]?.message).not.toContain(outside);
+    fs.rmSync(outside, { recursive: true, force: true });
+  });
+
+  it('refuses a project directory that is a link out of the repository', () => {
+    const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'outside-')));
+    fs.writeFileSync(path.join(outside, 'plugin.json'), '{"version":"9.9.9"}\n');
+    fs.symlinkSync(outside, path.join(root, 'plugins/elsewhere'));
+    commit('a pull request adds a link');
+
+    const { errors, released } = check({ projects: [{ path: ['plugins/elsewhere'] }] });
+
+    expect(released).toEqual([]);
+    expect(errors[0]?.message).toContain('resolves outside the repository');
+    fs.rmSync(outside, { recursive: true, force: true });
+  });
+
+  it('follows a link that stays inside the repository', () => {
+    fs.mkdirSync(path.join(root, 'shared'));
+    fs.writeFileSync(path.join(root, 'shared/version.json'), `${JSON.stringify({ version: '0.2.0' })}\n`);
+    fs.symlinkSync('../../shared/version.json', path.join(root, 'plugins/docket/linked.json'));
+    write('plugins/docket/skills/docket/SKILL.md', '# skill\n\nA second line.\n');
+    commit('a version kept somewhere shared');
+
+    const { errors, released } = check({
+      projects: [{ path: ['plugins/*'], manifest: ['linked.json'] }],
+    });
+
+    expect(errors).toEqual([]);
+    expect(released).toEqual(['plugins/docket is new, at 0.2.0']);
+  });
+
   it('refuses a run with nothing to compare against', () => {
     expect(() => check({ base: '' })).toThrow(UsageError);
   });
