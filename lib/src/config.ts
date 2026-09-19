@@ -1,5 +1,4 @@
 import * as path from 'node:path';
-import { load } from 'js-yaml';
 import { UsageError } from './usage-error';
 
 /**
@@ -23,36 +22,24 @@ export interface ProjectGroup {
 const KEYS = ['path', 'manifest', 'changelog'];
 
 /**
- * Reads the `projects` input, which is a YAML list of groups.
+ * Reads the `projects` key of `.releasetools.yml`.
  *
  * Strict about its own shape: an unknown key is a typo far more often than an
  * intention, and a run configured by a typo checks the wrong thing quietly.
  */
-export function parseProjects(text: string): ProjectGroup[] {
-  if (text.trim() === '') {
+export function projectsFrom(value: unknown, where: string): ProjectGroup[] {
+  if (value === undefined || value === null) {
     return [];
   }
-
-  let parsed: unknown;
-  try {
-    parsed = load(text);
-  } catch (err) {
+  if (!Array.isArray(value)) {
     throw new UsageError(
-      `projects is not valid YAML: ${err instanceof Error ? err.message : String(err)}`,
+      `${where} must be a list of entries, each with a path, for example:\n` +
+        '  projects:\n    - path: packages/*\n      manifest: package.json\n' +
+        '      changelog: CHANGELOG.md',
     );
   }
 
-  if (parsed === null || parsed === undefined) {
-    return [];
-  }
-  if (!Array.isArray(parsed)) {
-    throw new UsageError(
-      'projects must be a list of entries, each with a path, for example:\n' +
-        '  - path: packages/*\n    manifest: package.json\n    changelog: CHANGELOG.md',
-    );
-  }
-
-  return parsed.map((entry, index) => group(entry, `projects entry ${index + 1}`));
+  return value.map((entry, index) => group(entry, `${where} entry ${index + 1}`));
 }
 
 function group(entry: unknown, where: string): ProjectGroup {

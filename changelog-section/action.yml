@@ -1,7 +1,7 @@
 name: 'Changelog section'
 description: >-
   Hand one version's changelog section to whatever publishes the
-  release. It reads the heading the way release-guard reads it, so the
+  release. It reads the heading the way changelog-guard reads it, so the
   entry a pull request was made to write is the entry the release
   publishes.
 author: 'releasetools'

@@ -8,11 +8,12 @@ Each action lives in its own subdirectory with an `action.yml`, TypeScript
 source, tests, and a user-facing README. The root `package.json` holds the shared
 build and test toolchain.
 
-`lib/` is what more than one action needs: `lib/src/changelog.ts` is the single
-reader behind `release-guard` asking whether a release is written down and
-`changelog-section` handing over the lines. Two readers would be two answers to
-one question. Nothing lands there until a second action needs it, and nothing
-in `lib/` is published: each action bundles what it imports.
+`lib/` is what more than one action needs. `lib/src/scan.ts` finds the projects
+a change touched, and both guards start there; `lib/src/changelog.ts` is the
+single reader behind `changelog-guard` asking whether a release is written down
+and `changelog-section` handing over the lines. Two readers would be two
+answers to one question. Nothing lands there until a second action needs it,
+and nothing in `lib/` is published: each action bundles what it imports.
 
 Source lives on `main`. Generated `dist/` bundles are gitignored there and are
 built fresh by the release workflow.
@@ -54,7 +55,11 @@ refuses a version the changelog has no section for, and publishes that same
 section as the release notes, so the file and the release page cannot say
 different things about one version. The workflow reads it through the
 `changelog-section` action this repository ships, so the release dogfoods the
-same heading rule `release-guard` applies to every pull request.
+same heading rule `changelog-guard` applies to every pull request.
+
+`package.json` declares the version this repository is on, which is what the
+guards judge a pull request against, so the workflow refuses to release a
+version it does not name. Bump it in the pull request that earns the bump.
 
 To publish, write the section, then dispatch `.github/workflows/release.yml`
 with a version matching `vMAJOR.MINOR.PATCH`. The workflow validates, tests,
