@@ -17,7 +17,7 @@ and nothing in `lib/` is published: each action bundles what it imports.
 
 `packages/config` is the reader for `.releasetools.yaml`, published to npm as
 `@releasetools/config` by `.github/workflows/publish-config.yml` on its own
-version. The release-notes plugin carries the same file byte for byte, because
+version. [Publishing it](#publishing-releasetoolsconfig) is a dispatch. The release-notes plugin carries the same file byte for byte, because
 a Claude Code plugin installs as a clone of its marketplace and never runs
 `npm install`. Change it here, publish, then copy it there.
 
@@ -36,6 +36,41 @@ npm run build
 Add or update tests alongside behavior changes. `npm run build` verifies that
 `@vercel/ncc` can bundle the Node action, but the generated bundle is not
 committed to `main`.
+
+## Publishing `@releasetools/config`
+
+Dispatch `.github/workflows/publish-config.yml` with the version
+`packages/config/package.json` declares. The workflow refuses any other
+version, refuses one npm already carries, and runs the lint and the tests
+first, because the guards read the file through this package.
+
+Authentication is [trusted publishing](https://docs.npmjs.com/trusted-publishers):
+no token in the repository, an OIDC token minted per run from the
+`id-token: write` permission, and provenance generated from the same identity.
+
+A trusted publisher can only be configured for a package that already exists,
+so the first publish is the one exception:
+
+1. Create a granular access token on npmjs.com with write access to
+   `@releasetools/config`, and add it to this repository as the `NPM_TOKEN`
+   secret.
+2. Dispatch the workflow. That publishes `0.1.0` and creates the package.
+3. On npmjs.com, open the package, then **Settings → Trusted publisher →
+   GitHub Actions**, and fill in:
+
+   | field | value |
+   | --- | --- |
+   | Organization or user | `releasetools` |
+   | Repository | `actions` |
+   | Workflow filename | `publish-config.yml` |
+   | Environment | leave empty |
+
+4. Delete the `NPM_TOKEN` secret from the repository. npm prefers the OIDC
+   token over any token in the environment, so nothing else changes.
+
+Every publish after that carries provenance linking the tarball to the commit
+and the workflow run that built it, and no long-lived credential exists to
+leak.
 
 ## Release layout
 
