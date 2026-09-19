@@ -14,6 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # The guards compare against the fork point and the newest
+          # reachable tag.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
@@ -28,3 +32,11 @@ jobs:
       # Verify the bundle still builds. We don't commit dist on main;
       # the release workflow synthesizes the clean tree at tag time.
       - run: npm run build
+
+      # Dogfood: this repository answers to the guards it ships, against the
+      # bundles the step above just built.
+      - uses: ./versions-guard
+        if: github.event_name == 'pull_request'
+
+      - uses: ./changelog-guard
+        if: github.event_name == 'pull_request'

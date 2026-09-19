@@ -87,3 +87,40 @@ function compareIdentifiers(left: string, right: string): number {
   }
   return left === right ? 0 : left < right ? -1 : 1;
 }
+
+/** Which part of a version a change moves. */
+export type Part = 'major' | 'minor' | 'patch';
+
+/**
+ * The version that follows `from` by incrementing `part`.
+ *
+ * Under `0.y.z` a major increments the minor instead, because semver's "anything
+ * may change" is a rule for publishers and no help to anybody depending on one:
+ * it keeps `^0.4.2` meaning what a reader expects while the leading zero lasts.
+ * A pre-release is dropped, since `1.2.3-rc.1` incremented by a patch is
+ * `1.2.4`, not another candidate.
+ */
+export function increment(from: Semver, part: Part): Semver {
+  const next = (major: number, minor: number, patch: number): Semver => ({
+    major,
+    minor,
+    patch,
+    prerelease: [],
+  });
+
+  if (part === 'major') {
+    return from.major === 0
+      ? next(0, from.minor + 1, 0)
+      : next(from.major + 1, 0, 0);
+  }
+  if (part === 'minor') {
+    return next(from.major, from.minor + 1, 0);
+  }
+  return next(from.major, from.minor, from.patch + 1);
+}
+
+/** The version as it is written. */
+export function format(version: Semver): string {
+  const core = `${version.major}.${version.minor}.${version.patch}`;
+  return version.prerelease.length === 0 ? core : `${core}-${version.prerelease.join('.')}`;
+}

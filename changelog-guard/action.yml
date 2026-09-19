@@ -1,0 +1,23 @@
+name: 'Changelog guard'
+description: >-
+  Fail a pull request when a project changed without a changelog section
+  for the version it now claims.
+author: 'releasetools'
+branding:
+  icon: 'book-open'
+  color: 'blue'
+
+inputs:
+  base:
+    description: >-
+      Ref the working tree is compared against. On a pull request it is read
+      from the event and nothing needs setting; anywhere else, name one. The
+      comparison is taken from where the branch forked, so the checkout needs
+      history reaching it: fetch-depth: 0. Everything else the guard knows,
+      it reads from .releasetools.yml at the repository root.
+    required: false
+    default: ''
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'

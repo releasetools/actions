@@ -1,7 +1,7 @@
 /**
  * Reading a changelog, shared by every action in this repository that has to.
  *
- * One heading rule in one place: `release-guard` asks whether a section exists
+ * One heading rule in one place: `changelog-guard` asks whether a section exists
  * for a version, and `changelog-section` hands the lines under it to whatever
  * publishes the release. Two readers would be two answers to "is this release
  * written down", and the pair that disagrees is the one nobody notices.

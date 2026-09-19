@@ -52,6 +52,20 @@ jobs:
             exit 1
           fi
 
+      # package.json is what the guards judge every pull request against, so
+      # releasing anything else would release a version nothing was checked
+      # for.
+      - name: Refuse a version the manifest does not declare
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          declared="v$(node -p "require('./package.json').version")"
+          if [[ "$declared" != "$VERSION" ]]; then
+            echo "::error::package.json declares ${declared}. Release that, or bump it first."
+            exit 1
+          fi
+
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
@@ -66,7 +80,7 @@ jobs:
           npm run build
 
       # Dogfood: the notes come from the action this repository ships, reading
-      # the heading the way release-guard reads it on every pull request.
+      # the heading the way changelog-guard reads it on every pull request.
       - name: Read the release notes
         id: section
         uses: ./changelog-section
@@ -132,7 +146,7 @@ jobs:
           set -euo pipefail
           mkdir -p stage
           cp LICENSE stage/
-          for action in signed-push release-guard changelog-section; do
+          for action in signed-push versions-guard changelog-guard changelog-section; do
             mkdir -p "stage/$action"
             cp "$action/action.yml" "stage/$action/"
             cp "$action/README.md" "stage/$action/"
