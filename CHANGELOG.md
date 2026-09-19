@@ -44,9 +44,11 @@ releasetools tool reads, rather than taking their configuration from the
 workflow. Projects, the files whose edits do not count, and whether those
 patterns match case are declared once by the repository, so including the
 action is the whole of switching a guard on. `base` is the only input left.
-A convention named under `conventions.except` is one no guard checks:
-excepting `bump-from-type` drops the type table and asks only that a material
-change move the version at all.
+A convention named under `conventions.except` is one no guard checks.
+`versions-guard` reads `bump-from-type`, and excepting it drops the type table
+and asks only that a material change move the version at all;
+`changelog-guard` reads `changelog-per-release`, and excepting it turns the
+guard off wherever the file is read rather than in one workflow.
 
 Versions are compared the way
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html) says to, so

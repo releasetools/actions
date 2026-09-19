@@ -36,6 +36,10 @@ and [`versions-guard`](../versions-guard/) documents them. The action's one
 input is `base`, the ref to compare against, for the runs that are not pull
 requests.
 
+This checks one convention, `changelog-per-release`. Naming it under
+`conventions.except` turns the guard off wherever the file is read, rather
+than in one workflow.
+
 ## What counts as a section
 
 A `##` heading carrying the version the project's manifest now declares.

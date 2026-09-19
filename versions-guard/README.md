@@ -89,8 +89,9 @@ conventions:
 `path` takes one name or a list, as paths or globs. `manifest` takes one name
 or a list, and a directory two groups reach belongs to the first.
 
-A convention named under `conventions.except` is one no tool checks. Excepting
-`bump-from-type` drops the table above, and the older rule applies instead:
+A convention named under `conventions.except` is one no tool checks. This
+guard reads `bump-from-type`: excepting it drops the table above, and the
+older rule applies instead:
 anything that changed beyond the files a release writes has to move the
 version at all.
 

@@ -193,6 +193,18 @@ describe('both guards, against a real repository', () => {
     expect(moved.moved).toEqual([`${path.basename(root)} 1.3.5 -> 1.3.6`]);
   });
 
+  it('asks nothing where the repository excepts the convention', () => {
+    write('plugins/docket/skills/docket/SKILL.md', '# skill\n\nA second line.\n');
+    project('0.2.0', '# docket\n\n## 0.1.0\n\nThe first release.\n');
+    commit('feat(docket): a second line');
+
+    expect(changelogs().failures).toHaveLength(1);
+    expect(changelogs({ except: ['changelog-per-release'] })).toEqual({
+      recorded: [],
+      failures: [],
+    });
+  });
+
   it('refuses a run with nothing to compare against', () => {
     expect(() => versions({ base: '' })).toThrow(UsageError);
   });

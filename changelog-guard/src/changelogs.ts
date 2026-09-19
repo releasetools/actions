@@ -3,13 +3,13 @@ import type { ProjectGroup } from '../../lib/src/config';
 import { type Git, spawnGit } from '../../lib/src/git';
 import {
   DEFAULTS,
-  type ScanOptions,
   UsageError,
   readInside,
   rootOf,
   scan,
   within,
 } from '../../lib/src/scan';
+import type { GuardOptions } from '../../lib/src/settings';
 import { versionFrom } from '../../lib/src/version';
 
 export { DEFAULTS, UsageError };
@@ -34,7 +34,13 @@ export interface Result {
  * still remembers it, and the reader who needs it is on the previous version
  * deciding whether this one affects them.
  */
-export function guardChangelogs(options: ScanOptions): Result {
+export function guardChangelogs(options: GuardOptions): Result {
+  // A repository that excepts the convention is not asked about it, which is
+  // what naming a convention in `except` means.
+  if ((options.except ?? []).includes('changelog-per-release')) {
+    return { recorded: [], failures: [] };
+  }
+
   const git: Git = options.git ?? spawnGit;
   const root = rootOf(options.root);
   const { found, failures: scanned } = scan({ ...options, git });
