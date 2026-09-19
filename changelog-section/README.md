@@ -5,7 +5,7 @@ Hand one version's changelog section to whatever publishes the release.
 A release that writes its own notes and a check that reads the changelog are
 two answers to "is this release written down", and the pair that disagrees is
 the one nobody notices. This reads the heading the way
-[`release-guard`](../release-guard/) reads it, out of the same module, so the
+[`changelog-guard`](../changelog-guard/) reads it, out of the same module, so the
 entry a pull request was made to write is the entry the release publishes.
 
 ## Quick start

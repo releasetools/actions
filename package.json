@@ -1,6 +1,6 @@
 {
   "name": "@releasetools/actions",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "private": true,
   "description": "GitHub Actions for release pipelines: signed-push and friends",
   "license": "Apache-2.0",
@@ -10,20 +10,19 @@
   },
   "scripts": {
     "build:signed-push": "ncc build signed-push/src/index.ts -o signed-push/dist --license licenses.txt --minify",
-    "build:release-guard": "ncc build release-guard/src/index.ts -o release-guard/dist --license licenses.txt --minify",
+    "build:versions-guard": "ncc build versions-guard/src/index.ts -o versions-guard/dist --license licenses.txt --minify",
+    "build:changelog-guard": "ncc build changelog-guard/src/index.ts -o changelog-guard/dist --license licenses.txt --minify",
     "build:changelog-section": "ncc build changelog-section/src/index.ts -o changelog-section/dist --license licenses.txt --minify",
-    "build": "npm run build:signed-push && npm run build:release-guard && npm run build:changelog-section",
+    "build": "npm run build:signed-push && npm run build:versions-guard && npm run build:changelog-guard && npm run build:changelog-section",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.0",
-    "js-yaml": "^5.4.2"
+    "@actions/github": "^6.0.0"
   },
   "devDependencies": {
-    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.0",
     "@vercel/ncc": "^0.45.0",
     "typescript": "^5.6.0",

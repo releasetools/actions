@@ -1,0 +1,25 @@
+name: 'Changelog guard'
+description: >-
+  Fail a pull request that changes a project and writes nothing down
+  about it. The project's changelog has to carry a heading naming the
+  version its manifest declares, and a change a reader can observe moves
+  that version, so the heading is a new one.
+author: 'releasetools'
+branding:
+  icon: 'book-open'
+  color: 'blue'
+
+inputs:
+  base:
+    description: >-
+      Ref the working tree is compared against. On a pull request it is read
+      from the event and nothing needs setting; anywhere else, name one. The
+      comparison is taken from where the branch forked, so the checkout needs
+      history reaching it: fetch-depth: 0. Everything else the guard knows,
+      it reads from .releasetools.yaml at the repository root.
+    required: false
+    default: ''
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'

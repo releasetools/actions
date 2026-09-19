@@ -2,29 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SKIP_LABEL, carriesLabel, skipRequested } from '../src/skip-label';
-
-describe('carriesLabel', () => {
-  it('finds the label among the payload objects', () => {
-    expect(carriesLabel([{ name: 'bug' }, { name: SKIP_LABEL }])).toBe(true);
-  });
-
-  it('is false when the pull request carries other labels', () => {
-    expect(carriesLabel([{ name: 'bug' }])).toBe(false);
-  });
-
-  it('is false when there is no pull request to read labels from', () => {
-    expect(carriesLabel(undefined)).toBe(false);
-  });
-
-  it('accepts bare strings, since a hand-built payload is somebody else’s shape', () => {
-    expect(carriesLabel([SKIP_LABEL])).toBe(true);
-  });
-
-  it('ignores an entry that carries no name', () => {
-    expect(carriesLabel([null, 42, { colour: 'red' }])).toBe(false);
-  });
-});
+import { skipRequested } from '../src/skip';
 
 describe('skipRequested', () => {
   const written: string[] = [];
@@ -44,32 +22,51 @@ describe('skipRequested', () => {
   });
 
   it('skips a pull request carrying the label', () => {
-    event(JSON.stringify({ pull_request: { labels: [{ name: SKIP_LABEL }] } }));
+    event(JSON.stringify({ pull_request: { labels: [{ name: 'skip-versions-guard' }] } }));
 
-    expect(skipRequested()).toBe(true);
+    expect(skipRequested('skip-versions-guard')).toBe(true);
+  });
+
+  it('skips one guard without skipping the other', () => {
+    event(JSON.stringify({ pull_request: { labels: [{ name: 'skip-changelog-guard' }] } }));
+
+    expect(skipRequested('skip-changelog-guard')).toBe(true);
+    expect(skipRequested('skip-versions-guard')).toBe(false);
   });
 
   it('checks a pull request carrying other labels', () => {
     event(JSON.stringify({ pull_request: { labels: [{ name: 'bug' }] } }));
 
-    expect(skipRequested()).toBe(false);
+    expect(skipRequested('skip-versions-guard')).toBe(false);
+  });
+
+  it('accepts bare strings, since a hand-built payload is somebody else’s shape', () => {
+    event(JSON.stringify({ pull_request: { labels: ['skip-versions-guard'] } }));
+
+    expect(skipRequested('skip-versions-guard')).toBe(true);
+  });
+
+  it('ignores an entry that carries no name', () => {
+    event(JSON.stringify({ pull_request: { labels: [null, 42, { colour: 'red' }] } }));
+
+    expect(skipRequested('skip-versions-guard')).toBe(false);
   });
 
   it('checks an event that is not a pull request', () => {
     event(JSON.stringify({ ref: 'refs/heads/main' }));
 
-    expect(skipRequested()).toBe(false);
+    expect(skipRequested('skip-versions-guard')).toBe(false);
   });
 
   it('checks a run that is not in Actions at all', () => {
     delete process.env['GITHUB_EVENT_PATH'];
 
-    expect(skipRequested()).toBe(false);
+    expect(skipRequested('skip-versions-guard')).toBe(false);
   });
 
   it('checks rather than throwing on an unreadable event file', () => {
     event('{ not json');
 
-    expect(skipRequested()).toBe(false);
+    expect(skipRequested('skip-versions-guard')).toBe(false);
   });
 });

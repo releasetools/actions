@@ -43,46 +43,78 @@ workflow.
 See the [`signed-push` guide](signed-push/) for mirroring, upserts, inputs,
 outputs, permissions, and behavior.
 
-### `release-guard`
+### `versions-guard`
 
-Fail a pull request when a project changed without recording it: its manifest
-version has to move, and its `CHANGELOG.md` has to open a section for the
-version it now claims. A project is any directory with its own version, from the
-repository itself to every package in a workspace.
+Fail a pull request when a project changed without moving its version far
+enough for what changed. How far follows from what the changes say they are,
+by [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) and
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html): a `fix` asks for a
+patch, a `feat` for a minor, a `!` or a `BREAKING CHANGE:` footer for a major,
+and the largest in the range wins.
 
 ```yaml
 - uses: actions/checkout@v6
   with:
-    # The check compares this tree against the base branch, so it needs both.
+    # The comparison needs the fork point, so the whole history.
     fetch-depth: 0
 
-- uses: releasetools/actions/release-guard@v0
+- uses: releasetools/actions/versions-guard@v0
   if: github.event_name == 'pull_request'
-  with:
-    # Omit entirely for a repository that is one versioned thing.
-    projects: |
-      - path: packages/*
-        manifest: package.json
-        changelog: CHANGELOG.md
-      - path: crates/*
-        manifest: Cargo.toml
 ```
 
-A pull request already says what it is against, so there is nothing else to
-configure.
+A pull request already says what it is against, and the repository already
+says what it holds, so including the action is the whole of switching the
+check on. The baseline is the newest tag reachable from the commit rather than
+the newest by date, so a backport released yesterday on a release branch is
+not mistaken for this line's last release.
 
-Each project that failed the rule becomes an annotation on the pull request. It
-reads a version out of `package.json`, `pyproject.toml`, `Cargo.toml`, a
-`VERSION` file or whatever else a group names, and it counts files that are not
-committed yet as well as the diff.
+See the [`versions-guard` guide](versions-guard/) for the rule, the baseline,
+and where a version is read from.
 
-See the [`release-guard` guide](release-guard/) for project globs, the rule,
-the inputs, and the exit codes.
+### `changelog-guard`
+
+Fail a pull request that changes a project and writes nothing down about it.
+The project's changelog has to carry a `##` heading naming the version its
+manifest declares, which is a new heading whenever the version moved.
+
+```yaml
+- uses: actions/checkout@v6
+  with:
+    fetch-depth: 0
+
+- uses: releasetools/actions/changelog-guard@v0
+  if: github.event_name == 'pull_request'
+```
+
+Each project that failed becomes an annotation on the pull request. A group
+that names no changelog owes none.
+
+See the [`changelog-guard` guide](changelog-guard/).
+
+### What a guard reads
+
+Both read `.releasetools.yaml` at the repository root, the same file every
+releasetools tool reads. A repository that keeps no such file is one project
+at its root.
+
+```yaml
+projects:
+  - path: packages/*
+    manifest: package.json
+    changelog: CHANGELOG.md
+  - path: crates/*
+    manifest: Cargo.toml
+```
+
+A project is any directory with its own version, from the repository itself to
+every package in a workspace. A version is read out of `package.json`,
+`pyproject.toml`, `Cargo.toml`, a `VERSION` file or whatever else a group
+names, and files that are not committed yet count as well as the diff.
 
 ### `changelog-section`
 
 Hand one version's changelog section to whatever publishes the release. It
-reads the heading the way `release-guard` reads it, out of the same module, so
+reads the heading the way `changelog-guard` reads it, out of the same module, so
 the entry a pull request was made to write is the entry the release publishes.
 
 ```yaml

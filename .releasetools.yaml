@@ -1,0 +1,12 @@
+# How this repository releases, read by every releasetools tool.
+#
+# Conventions: https://github.com/releasetools/conventions
+# Tools:       https://github.com/releasetools
+#
+# The actions release together on one version, so the repository is one
+# project and each action's directory is not.
+projects:
+  - path: ./
+    manifest: package.json
+    changelog: CHANGELOG.md
+    bump: npm version {version} --no-git-tag-version

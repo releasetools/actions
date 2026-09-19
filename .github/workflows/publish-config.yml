@@ -1,0 +1,92 @@
+name: Publish @releasetools/config
+
+# The reader for .releasetools.yaml, which the guards here and the
+# release-notes plugin both use. The plugin carries the file rather than
+# depending on it, because a plugin installs as a clone of its marketplace and
+# never runs npm install; publishing is what gives that copy something to be
+# checked against.
+#
+# Dispatch with the version in packages/config/package.json.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.1.0). Must match packages/config/package.json.'
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Refuse a version the package does not declare
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          declared="$(node -p "require('./packages/config/package.json').version")"
+          if [[ "$declared" != "${VERSION#v}" ]]; then
+            echo "::error::packages/config/package.json declares ${declared}. Bump it, or publish that."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing needs npm 11.5.1 or later, and a Node release line
+      # ships whatever npm it shipped with.
+      - name: Make sure npm can publish through OIDC
+        run: |
+          set -euo pipefail
+          have="$(npm --version)"
+          if [[ "$(printf '%s\n' "11.5.1" "$have" | sort -V | head -n 1)" != "11.5.1" ]]; then
+            echo "npm ${have} is older than 11.5.1; upgrading."
+            npm install -g npm@latest
+          fi
+          npm --version
+
+      - run: npm ci
+
+      # The guards read the file through this package, so what publishes is
+      # what they were tested against.
+      - name: Lint and test
+        run: |
+          npm run lint
+          npm test
+
+      # NPM_TOKEN bootstraps the first publish, because a trusted publisher
+      # can only be configured for a package that already exists. Once the
+      # package trusts this workflow on npmjs.com, npm uses the OIDC token in
+      # preference to any NODE_AUTH_TOKEN and the secret can be deleted.
+      # CONTRIBUTING.md has the fields to fill in there.
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        working-directory: packages/config
+        run: |
+          set -euo pipefail
+          expected="${VERSION#v}"
+
+          # npm versions are immutable, so a re-run leaves the published one
+          # alone rather than failing the workflow on the second attempt.
+          if published="$(npm view "@releasetools/config@${expected}" version 2>/dev/null)"; then
+            if [[ "$published" != "$expected" ]]; then
+              echo "::error::npm returned unexpected version ${published}"
+              exit 1
+            fi
+            echo "@releasetools/config@${expected} already exists; nothing to do."
+            exit 0
+          fi
+
+          npm publish --access public --provenance
+          echo "published @releasetools/config@${expected}" >> "$GITHUB_STEP_SUMMARY"

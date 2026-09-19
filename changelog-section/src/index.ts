@@ -5,7 +5,7 @@ import { section } from '../../lib/src/changelog';
 /**
  * Hands one version's changelog section to whatever publishes the release.
  *
- * It reads the heading the way release-guard reads it, so the entry a pull
+ * It reads the heading the way changelog-guard reads it, so the entry a pull
  * request was made to write is the entry the release publishes, rather than
  * two readers disagreeing about which lines belong to a version.
  */

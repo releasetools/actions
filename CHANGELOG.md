@@ -5,25 +5,63 @@ first.
 
 ## 0.2.0 - 2026-09-19
 
-### Changed
+### Removed
 
-`release-guard` compares versions the way
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html) says to, so
-`0.2.0-rc.1` now sorts after `0.1.0` and before `0.2.0` where it used to read
-as equal to `0.2.0` and a bump to a candidate looked like no bump at all.
-Build metadata after a `+` is ignored, as the specification says. A version
-that is not a semantic one, `1.0` or `v1.2`, is now a failure naming it
-rather than a guess: a range, a lockfile and a resolver all read a version,
-and none of them can read those.
+`release-guard` is gone, and what it did is now two actions. It asked one
+question with two answers in it, so a repository that wanted the version check
+and not the changelog check had no way to say so, and a failure on either read
+as a failure of both.
 
 ### Added
 
+`versions-guard` fails a pull request when a project changed without moving
+its version far enough for what changed. How far follows from what the changes
+say they are: a `fix` asks for a patch, a `feat` for a minor, a `!` or a
+`BREAKING CHANGE:` footer for a major, and the largest in the range wins. A
+`docs:` touching source asks for nothing, where the older rule asked for a
+patch for any file that moved. The baseline is the newest tag reachable from
+the commit rather than the newest by date, so a backport released yesterday on
+a release branch is not mistaken for this line's last release.
+
+`changelog-guard` fails a pull request that changes a project and writes
+nothing down about it: the project's changelog has to carry a `##` heading
+naming the version its manifest declares, which is a new heading whenever the
+version moved. A group that names no changelog owes none.
+
 `changelog-section` hands one version's changelog section to whatever
 publishes the release, as `notes`, with `found` saying whether there was a
-section at all. It reads the heading the way `release-guard` reads it, out of
-the same module, so the entry a pull request was made to write is the entry
+section at all. It reads the heading the way `changelog-guard` reads it, out
+of the same module, so the entry a pull request was made to write is the entry
 the release publishes. It never fails on a missing section: a release workflow
 wants to stop there and a draft might not, so the caller decides.
+
+A pull request labelled `skip-versions-guard` or `skip-changelog-guard` passes
+that guard with a notice saying so, so one can be skipped without the other.
+
+### Changed
+
+Both guards read `.releasetools.yaml` at the repository root, the file every
+releasetools tool reads, rather than taking their configuration from the
+workflow. Projects, the files whose edits do not count, and whether those
+patterns match case are declared once by the repository, so including the
+action is the whole of switching a guard on. `base` is the only input left.
+A convention named under `conventions.except` is one no guard checks.
+`versions-guard` reads `bump-from-type`, and excepting it drops the type table
+and asks only that a material change move the version at all;
+`changelog-guard` reads `changelog-per-change`, and excepting it turns the
+guard off wherever the file is read rather than in one workflow.
+
+Versions are compared the way
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html) says to, so
+`0.2.0-rc.1` sorts after `0.1.0` and before `0.2.0` where it used to read as
+equal to `0.2.0` and a bump to a candidate looked like no bump at all. Build
+metadata after a `+` is ignored, as the specification says. A version that is
+not a semantic one, `1.0` or `v1.2`, is a failure naming it rather than a
+guess: a range, a lockfile and a resolver all read a version, and none of them
+can read those.
+
+A manifest that resolves outside the checkout is refused rather than read, and
+the message never says where it pointed.
 
 ## 0.1.1 - 2026-09-19
 
