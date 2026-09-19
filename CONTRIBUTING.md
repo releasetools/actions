@@ -15,6 +15,12 @@ and `changelog-section` handing over the lines. Two readers would be two
 answers to one question. Nothing lands there until a second action needs it,
 and nothing in `lib/` is published: each action bundles what it imports.
 
+`packages/config` is the reader for `.releasetools.yaml`, published to npm as
+`@releasetools/config` by `.github/workflows/publish-config.yml` on its own
+version. The release-notes plugin carries the same file byte for byte, because
+a Claude Code plugin installs as a clone of its marketplace and never runs
+`npm install`. Change it here, publish, then copy it there.
+
 Source lives on `main`. Generated `dist/` bundles are gitignored there and are
 built fresh by the release workflow.
 
