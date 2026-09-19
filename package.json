@@ -11,7 +11,8 @@
   "scripts": {
     "build:signed-push": "ncc build signed-push/src/index.ts -o signed-push/dist --license licenses.txt --minify",
     "build:release-guard": "ncc build release-guard/src/index.ts -o release-guard/dist --license licenses.txt --minify",
-    "build": "npm run build:signed-push && npm run build:release-guard",
+    "build:changelog-section": "ncc build changelog-section/src/index.ts -o changelog-section/dist --license licenses.txt --minify",
+    "build": "npm run build:signed-push && npm run build:release-guard && npm run build:changelog-section",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit"

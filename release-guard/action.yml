@@ -2,8 +2,8 @@ name: 'Release guard'
 description: >-
   Fail a pull request when a project changed without recording a
   release. Every project whose source changed since the branch forked
-  must carry a higher manifest version, and, where check-changelog names
-  one, a changelog section for the version it now claims.
+  must carry a higher manifest version, and, where its group names a
+  changelog, a section for the version it now claims.
 author: 'releasetools'
 branding:
   icon: 'check-square'

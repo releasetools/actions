@@ -41,7 +41,7 @@ jobs:
       # floating major is the tag that moves. A run that died after tagging
       # needs the tag deleted by hand, which is the deliberate act it should
       # be rather than a silent rewrite of what somebody pinned.
-      - name: Refuse a version that already exists, or that nothing describes
+      - name: Refuse a version that already exists
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
@@ -49,10 +49,6 @@ jobs:
           set -euo pipefail
           if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${VERSION}" >/dev/null 2>&1; then
             echo "::error::${VERSION} is already released. Bump the version."
-            exit 1
-          fi
-          if ! node scripts/changelog-section.mjs "${VERSION#v}" >/dev/null; then
-            echo "::error::Write CHANGELOG.md's ${VERSION#v} section, then release."
             exit 1
           fi
 
@@ -68,6 +64,22 @@ jobs:
           npm run lint
           npm test
           npm run build
+
+      # Dogfood: the notes come from the action this repository ships, reading
+      # the heading the way release-guard reads it on every pull request.
+      - name: Read the release notes
+        id: section
+        uses: ./changelog-section
+        with:
+          version: ${{ inputs.version }}
+
+      - name: Refuse a version nothing describes
+        if: steps.section.outputs.found != 'true'
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "::error::Write CHANGELOG.md's ${VERSION#v} section, then release."
+          exit 1
 
       - name: Compute major version
         id: major
@@ -120,7 +132,7 @@ jobs:
           set -euo pipefail
           mkdir -p stage
           cp LICENSE stage/
-          for action in signed-push release-guard; do
+          for action in signed-push release-guard changelog-section; do
             mkdir -p "stage/$action"
             cp "$action/action.yml" "stage/$action/"
             cp "$action/README.md" "stage/$action/"
@@ -177,9 +189,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
+          NOTES: ${{ steps.section.outputs.notes }}
         run: |
           set -euo pipefail
-          node scripts/changelog-section.mjs "${VERSION#v}" > notes.md
+          # Through a file and an env var: the notes are Markdown somebody
+          # wrote, and neither a shell nor a YAML expression should be asked
+          # to carry it intact.
+          printf '%s\n' "$NOTES" > notes.md
           gh release create "$VERSION" \
             --title "$VERSION" \
             --notes-file notes.md \

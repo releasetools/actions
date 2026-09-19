@@ -1,8 +1,9 @@
 # releasetools/actions
 
-Small, focused GitHub Actions for release pipelines. The current release is
-[`v0.0.6`](https://github.com/releasetools/actions/releases/tag/v0.0.6); use
-`v0` to follow compatible updates on the current major line.
+Small, focused GitHub Actions for release pipelines. Use `v0` to follow
+compatible updates on the current major line, or pin an exact version, which is
+written once and never moves. The [releases](https://github.com/releasetools/actions/releases)
+say what each one changed.
 
 ## Actions
 
@@ -77,6 +78,30 @@ committed yet as well as the diff.
 
 See the [`release-guard` guide](release-guard/) for project globs, the rule,
 the inputs, and the exit codes.
+
+### `changelog-section`
+
+Hand one version's changelog section to whatever publishes the release. It
+reads the heading the way `release-guard` reads it, out of the same module, so
+the entry a pull request was made to write is the entry the release publishes.
+
+```yaml
+- uses: releasetools/actions/changelog-section@v0
+  id: notes
+  with:
+    version: ${{ inputs.version }}
+
+- env:
+    NOTES: ${{ steps.notes.outputs.notes }}
+  run: |
+    printf '%s\n' "$NOTES" > notes.md
+    gh release create "${{ inputs.version }}" --notes-file notes.md --verify-tag
+```
+
+`found` says whether there was a section at all, so a workflow decides for
+itself whether a release nothing describes should stop.
+
+See the [`changelog-section` guide](changelog-section/).
 
 More actions are planned for common cross-workflow release patterns.
 

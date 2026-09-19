@@ -213,6 +213,41 @@ describe('guard', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('sees a pre-release as older than the release it names', () => {
+    const root = build(['docket', '0.2.0-rc.1']);
+    write(root, 'plugins/docket/CHANGELOG.md', '# docket\n\n## 0.2.0-rc.1\n\nA candidate.\n');
+
+    const result = check(root, {
+      git: fakeGit({ changed: ['docket'], versions: { docket: '0.1.0' } }),
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.released).toEqual(['plugins/docket 0.1.0 -> 0.2.0-rc.1']);
+  });
+
+  it('refuses a pre-release that went backwards from its release', () => {
+    const root = build(['docket', '0.2.0-rc.1']);
+
+    const result = check(root, {
+      git: fakeGit({ changed: ['docket'], versions: { docket: '0.2.0' } }),
+    });
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.message).toContain('still 0.2.0-rc.1');
+  });
+
+  it('refuses a version that is not a semantic one', () => {
+    const root = build(['docket', '1.0']);
+
+    const result = check(root, {
+      git: fakeGit({ changed: ['docket'], versions: { docket: '0.1.0' } }),
+    });
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.rule).toBe('version');
+    expect(result.errors[0]?.message).toContain('not a semantic version');
+  });
+
   it('does not read 0.2.0 out of 0.2.0-rc1', () => {
     const root = build(['docket', '0.2.0']);
     write(root, 'plugins/docket/CHANGELOG.md', '# docket\n\n## 0.2.0-rc1\n\nNot the release.\n');
