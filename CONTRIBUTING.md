@@ -46,8 +46,9 @@ source, tests, dependencies, and CI configuration.
 Every release is described in `CHANGELOG.md` before it is cut. The workflow
 refuses a version the changelog has no section for, and publishes that same
 section as the release notes, so the file and the release page cannot say
-different things about one version. `.github/changelog-section.awk` is the one
-reader both steps use.
+different things about one version. `scripts/changelog-section.mjs` is the one
+reader both steps use, and it matches a heading the way `release-guard` does,
+so a changelog that releases is a changelog that passes the check.
 
 To publish, write the section, then dispatch `.github/workflows/release.yml`
 with a version matching `vMAJOR.MINOR.PATCH`. The workflow validates, tests,

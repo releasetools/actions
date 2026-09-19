@@ -1,8 +1,17 @@
 # Changelog
 
 What changed in each release of the actions in this repository, newest
-first. Releases before 0.1.0 are in the tag history: the changelog starts
-here.
+first.
+
+## 0.1.1 - 2026-09-19
+
+Neither action changed.
+
+The repository keeps a changelog from here, and a release publishes that
+version's section as its notes, so what a release contains is written down
+rather than left to a compare link. An exact version tag is written once:
+releasing a version that already has a tag fails, rather than rewriting
+what somebody pinned to it. The floating major still moves.
 
 ## 0.1.0 - 2026-09-19
 

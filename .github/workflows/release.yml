@@ -51,8 +51,8 @@ jobs:
             echo "::error::${VERSION} is already released. Bump the version."
             exit 1
           fi
-          if [ -z "$(awk -v v="${VERSION#v}" -f .github/changelog-section.awk CHANGELOG.md)" ]; then
-            echo "::error::CHANGELOG.md has no section for ${VERSION#v}. Write one, then release."
+          if ! node scripts/changelog-section.mjs "${VERSION#v}" >/dev/null; then
+            echo "::error::Write CHANGELOG.md's ${VERSION#v} section, then release."
             exit 1
           fi
 
@@ -179,7 +179,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          awk -v v="${VERSION#v}" -f .github/changelog-section.awk CHANGELOG.md > notes.md
+          node scripts/changelog-section.mjs "${VERSION#v}" > notes.md
           gh release create "$VERSION" \
             --title "$VERSION" \
             --notes-file notes.md \
