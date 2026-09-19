@@ -106,6 +106,17 @@ projects:
     expect(settings('projects:\n  - path: ./').ignoreFiles).toBeUndefined();
   });
 
+  it('reads how a release is cut, and leaves later keys alone', () => {
+    const declared = settings(
+      'release:\n  branch: main\n  checks: tests.yml\n  publish: publish.yml\n  something-later: x',
+    );
+
+    // The guards act on none of it, so a key one of them has never heard of
+    // is not a reason to fail a pull request.
+    expect(declared).not.toHaveProperty('release');
+    expect(() => settings('release:\n  checks: []')).toThrow(/checks must be a name/);
+  });
+
   it('reads the conventions a repository does not follow', () => {
     expect(settings('conventions:\n  except:\n    - bump-from-type').except).toEqual([
       'bump-from-type',

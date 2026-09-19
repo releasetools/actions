@@ -1,7 +1,7 @@
 {
   "name": "@releasetools/config",
   "version": "0.1.0",
-  "description": "Reading .releasetools.yaml: the same parser the guards and the release-notes plugin use",
+  "description": "Reads `.releasetools.yaml`, the file every tool in the releasetools suite takes its configuration from.",
   "license": "Apache-2.0",
   "main": "./releasetools-config.js",
   "exports": {

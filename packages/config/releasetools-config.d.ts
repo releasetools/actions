@@ -10,9 +10,22 @@ export interface ProjectGroup {
   bump?: string;
 }
 
+/** How a release is cut, where the repository says. */
+export interface Release {
+  /** The branch a release is cut from. Absent means the default branch. */
+  branch?: string;
+  /** The workflow that must be green on the merged commit before a tag. */
+  checks?: string;
+  /** The workflow a tag starts. */
+  publish?: string;
+  /** A URL that answers 404 for a version not yet released. */
+  registry?: string;
+}
+
 /** What `.releasetools.yaml` declares, checked. */
 export interface Declared {
   projects: ProjectGroup[];
+  release: Release;
   /** Null where the file says nothing, which is not the same as an empty list. */
   ignoreFiles: string[] | null;
   caseSensitive: boolean;
