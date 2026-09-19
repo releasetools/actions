@@ -1,0 +1,29 @@
+name: 'Changelog section'
+description: >-
+  Hand one version's changelog section to whatever publishes the
+  release. It reads the heading the way changelog-guard reads it, so the
+  entry a pull request was made to write is the entry the release
+  publishes.
+author: 'releasetools'
+branding:
+  icon: 'file-text'
+  color: 'blue'
+
+inputs:
+  version:
+    description: 'The version whose section to read, with or without a leading v.'
+    required: true
+  changelog:
+    description: 'The changelog to read, relative to the working directory.'
+    required: false
+    default: 'CHANGELOG.md'
+
+outputs:
+  notes:
+    description: 'The lines under that version''s heading, up to the next one. Empty when there is no section.'
+  found:
+    description: 'Whether the changelog carries a section for that version.'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
