@@ -1,0 +1,29 @@
+/** One group of projects and what they owe. */
+export interface ProjectGroup {
+  /** Directories, as paths or globs. */
+  path: string[];
+  /** Files that may declare the version. Every one a project holds must agree. */
+  manifest?: string[];
+  /** Changelog to check, relative to a project. Absent asks for none. */
+  changelog?: string;
+}
+
+/** What `.releasetools.yaml` declares, checked. */
+export interface Declared {
+  projects: ProjectGroup[];
+  /** Null where the file says nothing, which is not the same as an empty list. */
+  ignoreFiles: string[] | null;
+  caseSensitive: boolean;
+  except: string[];
+}
+
+export const CONFIG_FILE: string;
+export const MISSPELLED: string;
+export const MANIFESTS: string[];
+export const IGNORED: string[];
+
+export class ConfigError extends Error {}
+
+export function parseYaml(text: string, where?: string): unknown;
+export function settingsFrom(text: string, where?: string): Declared;
+export function projectsFrom(value: unknown, where: string): ProjectGroup[];

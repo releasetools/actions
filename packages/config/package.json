@@ -1,0 +1,25 @@
+{
+  "name": "@releasetools/config",
+  "version": "0.1.0",
+  "description": "Reading .releasetools.yaml: the same parser the guards and the release-notes plugin use",
+  "license": "Apache-2.0",
+  "main": "./releasetools-config.js",
+  "exports": {
+    ".": {
+      "types": "./releasetools-config.d.ts",
+      "default": "./releasetools-config.js"
+    }
+  },
+  "files": [
+    "releasetools-config.js",
+    "releasetools-config.d.ts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/releasetools/actions.git",
+    "directory": "packages/config"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

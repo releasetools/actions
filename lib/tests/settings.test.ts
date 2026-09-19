@@ -161,11 +161,14 @@ projects:
 
   it('refuses the YAML tags that ask for code', () => {
     expect(() => settings('projects:\n  - path: !!js/function "function () {}"')).toThrow(
-      /not valid YAML/,
+      /is YAML this does not read/,
     );
   });
 
-  it('says where YAML broke', () => {
-    expect(() => settings('projects: [unclosed')).toThrow(/is not valid YAML/);
+  it('says which line YAML broke on', () => {
+    expect(() => settings('projects: [unclosed')).toThrow(/line 1: a list opened with \[/);
+    expect(() => settings('projects:\n  - path: ./\n\tmanifest: x')).toThrow(
+      /line 3: YAML indents with spaces/,
+    );
   });
 });

@@ -1,15 +1,16 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { load } from 'js-yaml';
-import { type ProjectGroup, projectsFrom } from './config';
+import {
+  CONFIG_FILE,
+  ConfigError,
+  MISSPELLED,
+  settingsFrom,
+} from '../../packages/config/releasetools-config';
+import type { ProjectGroup } from './config';
 import type { ScanOptions } from './scan';
 import { UsageError } from './usage-error';
 
-/** Where a repository says what it holds and which conventions it follows. */
-export const CONFIG_FILE = '.releasetools.yaml';
-
-/** The spelling somebody reaches for, which would otherwise be read as silence. */
-const MISSPELLED = '.releasetools.yml';
+export { CONFIG_FILE };
 
 export interface Settings {
   /** Groups of projects. Absent leaves the repository itself as the project. */
@@ -56,64 +57,21 @@ export function readSettings(root: string): Settings {
     return { except: [] };
   }
 
-  let parsed: unknown;
+  // One reader, shared with the release-notes plugin, so the two cannot
+  // disagree about which project a change belongs to.
+  let declared;
   try {
-    parsed = load(text);
+    declared = settingsFrom(text, CONFIG_FILE);
   } catch (err) {
-    throw new UsageError(`${CONFIG_FILE} is not valid YAML: ${message(err)}`);
+    throw err instanceof ConfigError ? new UsageError(err.message) : err;
   }
-
-  if (parsed === null || parsed === undefined) {
-    return { except: [] };
-  }
-  if (typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new UsageError(`${CONFIG_FILE} must be a mapping of keys, for example:\n  projects:\n    - path: ./`);
-  }
-
-  // Unrecognised keys belong to other tools reading the same file.
-  const record = parsed as Record<string, unknown>;
-  const projects = projectsFrom(record['projects'], `${CONFIG_FILE} projects`);
-  const ignoreFiles = strings(record['ignore-files'], `${CONFIG_FILE} ignore-files`);
 
   return {
-    ...(projects.length > 0 ? { projects } : {}),
-    ...(record['ignore-files'] === undefined ? {} : { ignoreFiles }),
-    ...(record['case-sensitive'] === undefined
-      ? {}
-      : { caseSensitive: boolean(record['case-sensitive'], `${CONFIG_FILE} case-sensitive`) }),
-    except: exceptions(record['conventions']),
+    ...(declared.projects.length > 0 ? { projects: declared.projects as ProjectGroup[] } : {}),
+    ...(declared.ignoreFiles === null ? {} : { ignoreFiles: declared.ignoreFiles }),
+    ...(declared.caseSensitive ? { caseSensitive: true } : {}),
+    except: declared.except,
   };
-}
-
-/** The conventions the repository has opted out of, which no tool then checks. */
-function exceptions(value: unknown): string[] {
-  if (value === undefined || value === null) {
-    return [];
-  }
-  if (typeof value !== 'object' || Array.isArray(value)) {
-    throw new UsageError(`${CONFIG_FILE} conventions must be a mapping with an except list`);
-  }
-  return strings((value as Record<string, unknown>)['except'], `${CONFIG_FILE} conventions except`);
-}
-
-function strings(value: unknown, where: string): string[] {
-  if (value === undefined || value === null) {
-    return [];
-  }
-  if (typeof value === 'string') {
-    return value.trim() === '' ? [] : [value.trim()];
-  }
-  if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
-    return (value as string[]).map((item) => item.trim()).filter((item) => item !== '');
-  }
-  throw new UsageError(`${where} must be one name or a list of them`);
-}
-
-function boolean(value: unknown, where: string): boolean {
-  if (typeof value !== 'boolean') {
-    throw new UsageError(`${where} must be true or false`);
-  }
-  return value;
 }
 
 function message(err: unknown): string {
