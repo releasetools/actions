@@ -9,3 +9,4 @@ projects:
   - path: ./
     manifest: package.json
     changelog: CHANGELOG.md
+    bump: npm version {version} --no-git-tag-version

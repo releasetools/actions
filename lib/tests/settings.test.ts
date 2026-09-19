@@ -79,6 +79,18 @@ projects:
     expect(projects('projects:\n  - path: ./')).toEqual([{ path: ['./'] }]);
   });
 
+  it('reads the command that sets a project version', () => {
+    expect(
+      projects('projects:\n  - path: ./\n    manifest: pyproject.toml\n    bump: uv version {version}'),
+    ).toEqual([{ path: ['./'], manifest: ['pyproject.toml'], bump: 'uv version {version}' }]);
+  });
+
+  it('refuses a bump command that never names the version', () => {
+    expect(() => projects('projects:\n  - path: ./\n    bump: uv version')).toThrow(
+      /must say where the version goes/,
+    );
+  });
+
   it('reads the ignores and the case flag', () => {
     expect(settings('ignore-files:\n  - docs/**\n  - "*.md"\ncase-sensitive: true')).toEqual({
       ignoreFiles: ['docs/**', '*.md'],

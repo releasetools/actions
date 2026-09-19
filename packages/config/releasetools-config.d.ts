@@ -6,6 +6,8 @@ export interface ProjectGroup {
   manifest?: string[];
   /** Changelog to check, relative to a project. Absent asks for none. */
   changelog?: string;
+  /** The command that sets this project's version, with `{version}` in it. */
+  bump?: string;
 }
 
 /** What `.releasetools.yaml` declares, checked. */
