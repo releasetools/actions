@@ -99,11 +99,14 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          mkdir -p stage/signed-push
+          mkdir -p stage
           cp LICENSE stage/
-          cp signed-push/action.yml stage/signed-push/
-          cp signed-push/README.md stage/signed-push/
-          cp -r signed-push/dist stage/signed-push/
+          for action in signed-push release-guard; do
+            mkdir -p "stage/$action"
+            cp "$action/action.yml" "stage/$action/"
+            cp "$action/README.md" "stage/$action/"
+            cp -r "$action/dist" "stage/$action/"
+          done
           cat > stage/README.md <<EOF
           # releasetools/actions ${VERSION}
 

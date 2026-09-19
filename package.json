@@ -9,19 +9,22 @@
     "url": "git+https://github.com/releasetools/actions.git"
   },
   "scripts": {
-    "build": "ncc build signed-push/src/index.ts -o signed-push/dist --license licenses.txt --minify",
-    "build:all": "npm run build",
+    "build:signed-push": "ncc build signed-push/src/index.ts -o signed-push/dist --license licenses.txt --minify",
+    "build:release-guard": "ncc build release-guard/src/index.ts -o release-guard/dist --license licenses.txt --minify",
+    "build": "npm run build:signed-push && npm run build:release-guard",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.0"
+    "@actions/github": "^6.0.0",
+    "js-yaml": "^5.4.2"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.0",
-    "@vercel/ncc": "^0.38.3",
+    "@vercel/ncc": "^0.45.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
   },

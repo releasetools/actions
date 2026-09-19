@@ -42,6 +42,42 @@ workflow.
 See the [`signed-push` guide](signed-push/) for mirroring, upserts, inputs,
 outputs, permissions, and behavior.
 
+### `release-guard`
+
+Fail a pull request when a project changed without recording it: its manifest
+version has to move, and its `CHANGELOG.md` has to open a section for the
+version it now claims. A project is any directory with its own version, from the
+repository itself to every package in a workspace.
+
+```yaml
+- uses: actions/checkout@v6
+  with:
+    # The check compares this tree against the base branch, so it needs both.
+    fetch-depth: 0
+
+- uses: releasetools/actions/release-guard@v0
+  if: github.event_name == 'pull_request'
+  with:
+    # Omit entirely for a repository that is one versioned thing.
+    projects: |
+      - path: packages/*
+        manifest: package.json
+        changelog: CHANGELOG.md
+      - path: crates/*
+        manifest: Cargo.toml
+```
+
+A pull request already says what it is against, so there is nothing else to
+configure.
+
+Each project that failed the rule becomes an annotation on the pull request. It
+reads a version out of `package.json`, `pyproject.toml`, `Cargo.toml`, a
+`VERSION` file or whatever else a group names, and it counts files that are not
+committed yet as well as the diff.
+
+See the [`release-guard` guide](release-guard/) for project globs, the rule,
+the inputs, and the exit codes.
+
 More actions are planned for common cross-workflow release patterns.
 
 ## Development
