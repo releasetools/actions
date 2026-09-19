@@ -22,7 +22,7 @@ export interface ProjectGroup {
 const KEYS = ['path', 'manifest', 'changelog'];
 
 /**
- * Reads the `projects` key of `.releasetools.yml`.
+ * Reads the `projects` key of `.releasetools.yaml`.
  *
  * Strict about its own shape: an unknown key is a typo far more often than an
  * intention, and a run configured by a typo checks the wrong thing quietly.

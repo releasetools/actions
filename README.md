@@ -93,7 +93,7 @@ See the [`changelog-guard` guide](changelog-guard/).
 
 ### What a guard reads
 
-Both read `.releasetools.yml` at the repository root, the same file every
+Both read `.releasetools.yaml` at the repository root, the same file every
 releasetools tool reads. A repository that keeps no such file is one project
 at its root.
 

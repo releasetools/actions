@@ -24,7 +24,7 @@ deciding whether this one affects them.
 
 ## Configuration
 
-`.releasetools.yml` at the repository root, the same file every releasetools
+`.releasetools.yaml` at the repository root, the same file every releasetools
 tool reads. A group that names no changelog owes none, so this asks nothing
 until one does:
 

@@ -16,7 +16,7 @@ inputs:
       from the event and nothing needs setting; anywhere else, name one. The
       comparison is taken from where the branch forked, so the checkout needs
       history reaching it: fetch-depth: 0. Everything else the guard knows,
-      it reads from .releasetools.yml at the repository root.
+      it reads from .releasetools.yaml at the repository root.
     required: false
     default: ''
 

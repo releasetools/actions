@@ -59,11 +59,15 @@ outside its own history, is judged that way throughout.
 
 ## Configuration
 
-Everything but the base ref comes from `.releasetools.yml` at the repository
+Everything but the base ref comes from `.releasetools.yaml` at the repository
 root, read by every releasetools tool. A repository that keeps no such file is
 one project at its root.
 
 ```yaml
+# How this repository releases, read by every releasetools tool.
+#
+# Conventions: https://github.com/releasetools/conventions
+# Tools:       https://github.com/releasetools
 projects:
   - path: packages/*
     manifest: package.json

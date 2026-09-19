@@ -38,6 +38,13 @@ describe('readSettings', () => {
     expect(readSettings(repository())).toEqual({ except: [] });
   });
 
+  it('names the spelling that would otherwise be read as silence', () => {
+    const root = repository();
+    fs.writeFileSync(path.join(root, '.releasetools.yml'), 'projects:\n  - path: ./\n');
+
+    expect(() => readSettings(root)).toThrow(/\.releasetools\.yml is not read/);
+  });
+
   it('reads groups of paths, manifests and changelogs', () => {
     expect(
       projects(`

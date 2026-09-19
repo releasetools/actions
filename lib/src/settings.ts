@@ -6,7 +6,10 @@ import type { ScanOptions } from './scan';
 import { UsageError } from './usage-error';
 
 /** Where a repository says what it holds and which conventions it follows. */
-export const CONFIG_FILE = '.releasetools.yml';
+export const CONFIG_FILE = '.releasetools.yaml';
+
+/** The spelling somebody reaches for, which would otherwise be read as silence. */
+const MISSPELLED = '.releasetools.yml';
 
 export interface Settings {
   /** Groups of projects. Absent leaves the repository itself as the project. */
@@ -25,7 +28,7 @@ export interface GuardOptions extends ScanOptions {
 }
 
 /**
- * Reads `.releasetools.yml` at the repository root.
+ * Reads `.releasetools.yaml` at the repository root.
  *
  * A guard is configured by the repository rather than by the workflow that
  * calls it, so the same declaration serves every tool that reads this file and
@@ -38,6 +41,12 @@ export function readSettings(root: string): Settings {
     text = fs.readFileSync(path.join(root, CONFIG_FILE), 'utf8');
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      if (fs.existsSync(path.join(root, MISSPELLED))) {
+        throw new UsageError(
+          `${MISSPELLED} is not read. The file is ${CONFIG_FILE}; rename it, or the ` +
+            'repository is judged as one project at its root with nothing declared.',
+        );
+      }
       return { except: [] };
     }
     throw new UsageError(`cannot read ${CONFIG_FILE}: ${message(err)}`);

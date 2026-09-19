@@ -40,7 +40,7 @@ that guard with a notice saying so, so one can be skipped without the other.
 
 ### Changed
 
-Both guards read `.releasetools.yml` at the repository root, the file every
+Both guards read `.releasetools.yaml` at the repository root, the file every
 releasetools tool reads, rather than taking their configuration from the
 workflow. Projects, the files whose edits do not count, and whether those
 patterns match case are declared once by the repository, so including the
