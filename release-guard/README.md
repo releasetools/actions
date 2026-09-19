@@ -25,22 +25,89 @@ event:
   if: github.event_name == 'pull_request'
 ```
 
-That asks the repository for a version that moved, and nothing else. A
-repository of many projects declares them in groups:
+That asks the repository for a version that moved, and nothing else. It looks
+for one in `package.json`, `pyproject.toml`, `Cargo.toml` or a `VERSION` file,
+whichever the repository holds, and fails the step when the version stood
+still:
+
+```
+Version not bumped
+  my-repo changed but its version is still 0.1.0. Somebody has 0.1.0
+  installed, and a client compares versions to decide whether an update
+  exists, so bump it before merging.
+```
+
+Outside a pull request there is nothing to read, so `base` has to be set.
+
+## Examples
+
+**A changelog beside the version.** Name the file, and a project that bumped
+also has to say what changed:
 
 ```yaml
 - uses: releasetools/actions/release-guard@v0
   if: github.event_name == 'pull_request'
   with:
     projects: |
+      - path: ./
+        changelog: CHANGELOG.md
+```
+
+**Projects of different kinds.** A group says which files govern which
+directories, so a crate sits beside a package beside a chart:
+
+```yaml
+    projects: |
       - path: packages/*
         manifest: package.json
         changelog: CHANGELOG.md
       - path: crates/*
         manifest: Cargo.toml
+      - path: charts/*
+        manifest: Chart.yaml
+        changelog: CHANGELOG.md
 ```
 
-Outside a pull request there is nothing to read, so `base` has to be set.
+**A version kept in two places.** Every file a project holds has to agree, and
+one it does not hold is not its business:
+
+```yaml
+    projects: |
+      - path: services/*
+        manifest:
+          - package.json
+          - VERSION
+```
+
+```
+Version not bumped
+  services/api declares 2.1.0 in services/api/package.json and 2.0.0 in
+  services/api/VERSION. Whichever a client reads is the one that decides
+  whether it updates, so they have to say the same thing.
+```
+
+**One project named, its neighbours globbed.** A directory two groups reach
+belongs to the first, so the specific entry goes above the general one:
+
+```yaml
+    projects: |
+      - path: packages/legacy
+        manifest: VERSION
+      - path: packages/*
+        manifest: package.json
+        changelog: CHANGELOG.md
+```
+
+**More files that are not a change.** On top of each group's changelog and
+manifests, which never count:
+
+```yaml
+    ignore-files: |
+      README.md
+      LICENSE
+      docs/**
+      *.test.ts
+```
 
 Every project that failed the rule becomes an annotation on the pull request,
 and the step fails.
