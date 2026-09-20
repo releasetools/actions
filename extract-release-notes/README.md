@@ -1,4 +1,4 @@
-# `changelog-section`
+# `extract-release-notes`
 
 Hand one version's changelog section to whatever publishes the release.
 
@@ -11,7 +11,7 @@ entry a pull request was made to write is the entry the release publishes.
 ## Quick start
 
 ```yaml
-- uses: releasetools/actions/changelog-section@v0
+- uses: releasetools/actions/extract-release-notes@v0
   id: notes
   with:
     version: ${{ inputs.version }}
@@ -33,7 +33,7 @@ carry it intact.
 itself what that means:
 
 ```yaml
-- uses: releasetools/actions/changelog-section@v0
+- uses: releasetools/actions/extract-release-notes@v0
   id: notes
   with:
     version: ${{ inputs.version }}

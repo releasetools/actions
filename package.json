@@ -1,6 +1,6 @@
 {
   "name": "@releasetools/actions",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "GitHub Actions for release pipelines: signed-push and friends",
   "license": "Apache-2.0",
@@ -12,8 +12,8 @@
     "build:signed-push": "ncc build signed-push/src/index.ts -o signed-push/dist --license licenses.txt --minify",
     "build:versions-guard": "ncc build versions-guard/src/index.ts -o versions-guard/dist --license licenses.txt --minify",
     "build:changelog-guard": "ncc build changelog-guard/src/index.ts -o changelog-guard/dist --license licenses.txt --minify",
-    "build:changelog-section": "ncc build changelog-section/src/index.ts -o changelog-section/dist --license licenses.txt --minify",
-    "build": "npm run build:signed-push && npm run build:versions-guard && npm run build:changelog-guard && npm run build:changelog-section",
+    "build:extract-release-notes": "ncc build extract-release-notes/src/index.ts -o extract-release-notes/dist --license licenses.txt --minify",
+    "build": "npm run build:signed-push && npm run build:versions-guard && npm run build:changelog-guard && npm run build:extract-release-notes",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit"

@@ -3,6 +3,14 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.4.0 - 2026-09-20
+
+### Changed
+
+The action that reads one version’s changelog section is
+`releasetools/actions/extract-release-notes`. Set workflow `uses` references
+to `releasetools/actions/extract-release-notes@v0`.
+
 ## 0.3.0 - 2026-09-20
 
 ### Changed
