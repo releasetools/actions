@@ -24,6 +24,14 @@ a Claude Code plugin installs as a clone of its marketplace and never runs
 Source lives on `main`. Generated `dist/` bundles are gitignored there and are
 built fresh by the release workflow.
 
+Dependencies are Renovate's, through the org baseline in
+[releasetools/.github](https://github.com/releasetools/.github). It rolls
+routine Actions bumps into a weekly pull request, maintains the lock file, and
+pins action digests. `undici` reaches the published bundles through
+`@actions/core` and `@actions/github`, so a bump there is a bump in what
+every action ships, and its pull request is worth reading rather than merging
+on sight.
+
 ## Local development
 
 ```bash
