@@ -38,7 +38,7 @@ describe('both guards, against a real repository', () => {
   }
 
   const groups = [
-    { path: ['plugins/*'], manifest: ['plugin.json'], changelog: 'CHANGELOG.md' },
+    { path: ['plugins/docket'], manifest: ['plugin.json'], changelog: 'CHANGELOG.md' },
   ];
 
   function versions(options: Record<string, unknown> = {}) {
@@ -115,9 +115,43 @@ describe('both guards, against a real repository', () => {
     write('plugins/scaffold/plugin.json', `${JSON.stringify({ version: '0.1.0' })}\n`);
     write('plugins/scaffold/skills/x.md', '# x\n');
 
-    const moved = versions();
+    const projects = [
+      ...groups,
+      { path: ['plugins/scaffold'], manifest: ['plugin.json'], changelog: 'CHANGELOG.md' },
+    ];
+    const moved = versions({ projects });
     expect(moved.moved).toContain('plugins/scaffold is new, at 0.1.0');
-    expect(changelogs().failures[0]?.message).toContain('has no CHANGELOG.md');
+    expect(changelogs({ projects }).failures[0]?.message).toContain('has no CHANGELOG.md');
+  });
+
+  it('checks only declared projects when another directory is added', () => {
+    write('plugins/scaffold/plugin.json', `${JSON.stringify({ version: '0.1.0' })}\n`);
+    write('plugins/scaffold/skills/x.md', '# x\n');
+
+    expect(versions()).toEqual({ moved: [], failures: [] });
+    expect(changelogs()).toEqual({ recorded: [], failures: [] });
+  });
+
+  it('passes a changed project with no version alongside a versioned project', () => {
+    write('docs/guide.md', '# Guide\n');
+    write('plugins/docket/skills/docket/SKILL.md', '# Updated skill\n');
+    project('0.1.1', '# docket\n\n## 0.1.1\n\nA fix.\n');
+    commit('fix: correct the skill and guide');
+    const projects = [...groups, { path: ['docs'] }];
+
+    expect(versions({ projects })).toEqual({
+      moved: ['plugins/docket 0.1.0 -> 0.1.1'], failures: [],
+    });
+    expect(changelogs({ projects })).toEqual({
+      recorded: ['plugins/docket 0.1.1'], failures: [],
+    });
+  });
+
+  it('both guards refuse project patterns', () => {
+    const projects = [{ path: ['plugins/*'] }];
+
+    expect(() => versions({ projects })).toThrow(UsageError);
+    expect(() => changelogs({ projects })).toThrow(UsageError);
   });
 
   it('leaves a file git is ignoring out of it', () => {
@@ -145,7 +179,10 @@ describe('both guards, against a real repository', () => {
     commit('feat(scaffold): release 2.1.0');
     git('checkout', '-q', 'work');
 
-    const moved = guardVersions({ root, base: 'main', projects: groups });
+    const moved = guardVersions({
+      root, base: 'main',
+      projects: [{ ...groups[0]!, path: ['plugins/docket', 'plugins/scaffold'] }],
+    });
 
     expect(moved.failures).toEqual([]);
     expect(moved.moved).toEqual(['plugins/docket 0.1.0 -> 0.2.0']);

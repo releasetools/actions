@@ -29,8 +29,7 @@ export interface Result {
 }
 
 /**
- * Every project whose source changed carries a version that moved far enough
- * for what changed.
+ * Checks that each changed, versioned project increments its version far enough.
  *
  * A fix shipped under the old version reaches nobody, because a client
  * compares versions to decide whether an update exists. How far is far enough
@@ -51,14 +50,6 @@ export function guardVersions(options: GuardOptions): Result {
 
   for (const { project, material, manifests } of found) {
     if (manifests.length === 0) {
-      if (material) {
-        failures.push({
-          project: project.label,
-          message:
-            `${project.label} declares no version. Looked for ${project.manifests.join(', ')}; ` +
-            'name the file that holds it.',
-        });
-      }
       continue;
     }
 

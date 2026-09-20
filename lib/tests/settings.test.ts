@@ -49,15 +49,15 @@ describe('readSettings', () => {
     expect(
       projects(`
 projects:
-  - path: packages/*
+  - path: packages/api
     manifest: package.json
     changelog: CHANGELOG.md
-  - path: crates/*
+  - path: crates/core
     manifest: Cargo.toml
 `),
     ).toEqual([
-      { path: ['packages/*'], manifest: ['package.json'], changelog: 'CHANGELOG.md' },
-      { path: ['crates/*'], manifest: ['Cargo.toml'] },
+      { path: ['packages/api'], manifest: ['package.json'], changelog: 'CHANGELOG.md' },
+      { path: ['crates/core'], manifest: ['Cargo.toml'] },
     ]);
   });
 
@@ -66,13 +66,13 @@ projects:
       projects(`
 projects:
   - path:
-      - packages/*
+      - packages/api
       - tools/build
     manifest:
       - package.json
       - VERSION
 `),
-    ).toEqual([{ path: ['packages/*', 'tools/build'], manifest: ['package.json', 'VERSION'] }]);
+    ).toEqual([{ path: ['packages/api', 'tools/build'], manifest: ['package.json', 'VERSION'] }]);
   });
 
   it('leaves an entry that names no manifest to the default', () => {
@@ -135,8 +135,8 @@ projects:
   });
 
   it('refuses projects that are not a list of entries', () => {
-    expect(() => projects('projects: packages/*')).toThrow(/must be a list of entries/);
-    expect(() => projects('projects:\n  path: packages/*')).toThrow(/must be a list of entries/);
+    expect(() => projects('projects: packages/api')).toThrow(/must be a list of entries/);
+    expect(() => projects('projects:\n  path: packages/api')).toThrow(/must be a list of entries/);
   });
 
   it('refuses an entry with no path', () => {
@@ -146,7 +146,7 @@ projects:
   });
 
   it('names the key it does not know, since a typo configures the wrong thing quietly', () => {
-    expect(() => projects('projects:\n  - paths: packages/*')).toThrow(/entry 1 has no paths/);
+    expect(() => projects('projects:\n  - paths: packages/api')).toThrow(/entry 1 has no paths/);
   });
 
   it('refuses a changelog that is not one name', () => {

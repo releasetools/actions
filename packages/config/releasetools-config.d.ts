@@ -1,6 +1,6 @@
 /** One group of projects and what they owe. */
 export interface ProjectGroup {
-  /** Directories, as paths or globs. */
+  /** Explicit directory paths. Patterns are refused by the guards. */
   path: string[];
   /** Files that may declare the version. Every one a project holds must agree. */
   manifest?: string[];

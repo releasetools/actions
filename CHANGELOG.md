@@ -3,6 +3,17 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.3.0 - 2026-09-20
+
+### Changed
+
+Both guards require explicit directories in `projects[].path` and refuse
+patterns with an error naming the path. Name each workspace package in the
+configuration. `ignore-files` continues to accept patterns.
+
+`versions-guard` passes projects holding no manifest. Existing manifests must
+declare a valid version.
+
 ## 0.2.0 - 2026-09-19
 
 ### Removed

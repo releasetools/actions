@@ -64,40 +64,40 @@ describe('scan', () => {
     expect(result.found[0]?.material).toBe(true);
   });
 
-  it('takes every directory at the top with ./*', () => {
+  it('checks only the directories named in a list', () => {
     const root = repository('one', 'two');
 
     const result = scan({
       root,
       base: 'main',
-      projects: [{ path: ['./*'] }],
+      projects: [{ path: ['one'] }],
       git: fakeGit(['one/a.ts', 'two/b.ts']),
     });
 
-    expect(labels(result)).toEqual(['one', 'two']);
+    expect(labels(result)).toEqual(['one']);
   });
 
-  it('leaves hidden directories out of a glob', () => {
+  it('checks a named hidden directory', () => {
     const root = repository('one');
     fs.mkdirSync(path.join(root, '.github/workflows'), { recursive: true });
 
     const result = scan({
       root,
       base: 'main',
-      projects: [{ path: ['./*'] }],
+      projects: [{ path: ['.github'] }],
       git: fakeGit(['one/a.ts', '.github/workflows/ci.yml']),
     });
 
-    expect(labels(result)).toEqual(['one']);
+    expect(labels(result)).toEqual(['.github']);
   });
 
-  it('takes a glob one level down, and a plain path', () => {
+  it('checks named directories at different depths in path order', () => {
     const root = repository('packages/web', 'packages/api', 'tools/build');
 
     const result = scan({
       root,
       base: 'main',
-      projects: [{ path: ['packages/*', 'tools/build'] }],
+      projects: [{ path: ['packages/web', 'packages/api', 'tools/build'] }],
       git: fakeGit(['packages/web/a.ts', 'packages/api/b.ts', 'tools/build/c.ts']),
     });
 
@@ -112,26 +112,14 @@ describe('scan', () => {
       base: 'main',
       projects: [
         { path: ['packages/web'], manifest: ['package.json'], changelog: 'CHANGELOG.md' },
-        { path: ['packages/*'], manifest: ['Cargo.toml'] },
+        { path: ['./packages/web/'], manifest: ['Cargo.toml'] },
       ],
       git: fakeGit(['packages/web/a.ts']),
     });
 
     expect(result.found[0]?.project.changelog).toBe('CHANGELOG.md');
-  });
-
-  it('walks past a directory a glob turned up that declares no version', () => {
-    const root = repository('one');
-    fs.mkdirSync(path.join(root, 'docs'));
-
-    const result = scan({
-      root,
-      base: 'main',
-      projects: [{ path: ['./*'] }],
-      git: fakeGit(['one/a.ts', 'docs/guide.md']),
-    });
-
-    expect(labels(result)).toEqual(['one']);
+    expect(result.found[0]?.project.manifests).toEqual(['package.json']);
+    expect(result.found).toHaveLength(1);
   });
 
   it('keeps a directory it was told about that declares no version', () => {
@@ -149,10 +137,34 @@ describe('scan', () => {
     expect(result.found[0]?.manifests).toEqual([]);
   });
 
-  it('refuses a pattern that matches no directory', () => {
-    expect(() =>
-      scan({ root: repository('one'), base: 'main', projects: [{ path: ['nowhere/*'] }], git: fakeGit([]) }),
-    ).toThrow(/no directory matches nowhere\/\*/);
+  it.each([
+    './*', 'packages/*', 'packages/**', 'packages/a?i', 'packages/[aw]*',
+    'packages/[ab]', 'packages/{api,web}', 'packages/@(api|web)',
+    'packages/!(api)', 'packages/+(api)', 'nowhere/*',
+  ])('refuses the project pattern %s', (pattern) => {
+    const root = repository('packages/api', 'packages/web');
+    const run = () => scan({
+      root, base: 'main', projects: [{ path: [pattern] }], git: fakeGit([]),
+    });
+
+    expect(run).toThrow(UsageError);
+    expect(run).toThrow(`project path ${pattern} must name a directory; patterns are not allowed`);
+  });
+
+  it.each(['missing', 'one/package.json'])('refuses a path that is not a directory: %s', (name) => {
+    expect(() => scan({
+      root: repository('one'), base: 'main', projects: [{ path: [name] }], git: fakeGit([]),
+    })).toThrow(`project path ${name} is not a directory`);
+  });
+
+  it.each(['.', './'])('accepts %s as the repository root', (name) => {
+    const root = repository('.');
+    const result = scan({
+      root, base: 'main', projects: [{ path: [name] }], git: fakeGit(['src/thing.ts']),
+    });
+
+    expect(labels(result)).toEqual([path.basename(root)]);
+    expect(result.found[0]?.project.path).toBe('');
   });
 
   it('refuses a run with nothing to compare against', () => {
@@ -207,6 +219,11 @@ describe('what counts as material', () => {
 
   it('takes ** for a whole subtree', () => {
     expect(material(['docs/a/b/page.html'], { ignoreFiles: ['docs/**'] })).toBe(false);
+  });
+
+  it('takes ? for one character in an ignored filename', () => {
+    expect(material(['notes1.md'], { ignoreFiles: ['notes?.md'] })).toBe(false);
+    expect(material(['notes12.md'], { ignoreFiles: ['notes?.md'] })).toBe(true);
   });
 
   it('anchors a pattern with a slash to the directory it names', () => {

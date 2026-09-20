@@ -108,12 +108,6 @@ export function scan(options: ScanOptions): Scan {
       continue;
     }
 
-    // A glob turned up a directory that declares no version, so it is a
-    // directory rather than a project. `./*` over a repository is a search.
-    if (held.length === 0 && !project.named) {
-      continue;
-    }
-
     const changed = changedFiles(git, root, against, base, project);
     if (typeof changed === 'string') {
       failures.push({ project: project.label, message: changed });

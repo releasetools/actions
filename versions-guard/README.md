@@ -69,10 +69,10 @@ one project at its root.
 # Conventions: https://github.com/releasetools/conventions
 # Tools:       https://github.com/releasetools
 projects:
-  - path: packages/*
+  - path: [packages/api, packages/web]
     manifest: package.json
     changelog: CHANGELOG.md
-  - path: crates/*
+  - path: crates/core
     manifest: Cargo.toml
 
 # Files whose edits do not count as a project changing. Each is matched
@@ -90,8 +90,9 @@ conventions:
   except: []
 ```
 
-`path` takes one name or a list, as paths or globs. `manifest` takes one name
-or a list, and a directory two groups reach belongs to the first.
+`path` names one directory or a list of directories. Patterns are refused,
+and every named path must be a directory. A directory belongs to the first
+group naming it. `manifest` takes one filename or a list.
 
 A convention named under `conventions.except` is one no tool checks. This
 guard reads `bump-from-type`: excepting it drops the table above, and the
@@ -107,7 +108,9 @@ that are not pull requests.
 Every manifest a project holds has to declare the same version, because
 whichever one a client reads is the one that decides whether it updates. One
 it does not hold is not its business. A group that names none is read from
-`package.json`, `pyproject.toml`, `Cargo.toml` or `VERSION`.
+`package.json`, `pyproject.toml`, `Cargo.toml` or `VERSION`. A project holding
+none of those manifests passes without a version check. A manifest that
+exists but declares no version still fails.
 
 Any `.json` takes its top-level `version`, `.toml` the version of its
 `package`, `project`, `tool.poetry` or `workspace.package` table, `.yaml` a
