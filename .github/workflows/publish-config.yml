@@ -63,14 +63,11 @@ jobs:
           npm run lint
           npm test
 
-      # NPM_TOKEN bootstraps the first publish, because a trusted publisher
-      # can only be configured for a package that already exists. Once the
-      # package trusts this workflow on npmjs.com, npm uses the OIDC token in
-      # preference to any NODE_AUTH_TOKEN and the secret can be deleted.
-      # CONTRIBUTING.md has the fields to fill in there.
+      # The package trusts this workflow on npmjs.com, so the credential is an
+      # OIDC token minted for this run and there is none in the repository.
+      # CONTRIBUTING.md has the fields that were filled in there.
       - name: Publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ inputs.version }}
         working-directory: packages/config
         run: |
