@@ -132,12 +132,14 @@ describe('both guards, against a real repository', () => {
     expect(changelogs()).toEqual({ recorded: [], failures: [] });
   });
 
-  it('passes a changed project with no version alongside a versioned project', () => {
+  it('passes a changed project that does not hold the manifest it declares', () => {
     write('docs/guide.md', '# Guide\n');
     write('plugins/docket/skills/docket/SKILL.md', '# Updated skill\n');
     project('0.1.1', '# docket\n\n## 0.1.1\n\nA fix.\n');
     commit('fix: correct the skill and guide');
-    const projects = [...groups, { path: ['docs'] }];
+    // docs/ declares where its version would be and does not have one there,
+    // which is a directory somebody listed rather than a project to check.
+    const projects = [...groups, { path: ['docs'], manifest: ['package.json'] }];
 
     expect(versions({ projects })).toEqual({
       moved: ['plugins/docket 0.1.0 -> 0.1.1'], failures: [],
@@ -148,7 +150,7 @@ describe('both guards, against a real repository', () => {
   });
 
   it('both guards refuse project patterns', () => {
-    const projects = [{ path: ['plugins/*'] }];
+    const projects = [{ path: ['plugins/*'], manifest: ['plugin.json'] }];
 
     expect(() => versions({ projects })).toThrow(UsageError);
     expect(() => changelogs({ projects })).toThrow(UsageError);

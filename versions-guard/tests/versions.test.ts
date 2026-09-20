@@ -59,7 +59,13 @@ describe('guardVersions', () => {
   }
 
   function check(root: string, git: Git, options: Record<string, unknown> = {}) {
-    return guardVersions({ root, base: 'origin/main', git, ...options });
+    return guardVersions({
+      root,
+      base: 'origin/main',
+      projects: [{ path: ['./'], manifest: ['package.json'] }],
+      git,
+      ...options,
+    });
   }
 
   afterEach(() => {

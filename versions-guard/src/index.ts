@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
 import { inputs, report } from '../../lib/src/action';
+import { ABSENT } from '../../lib/src/settings';
 import { skipRequested } from '../../lib/src/skip';
 import { guardVersions } from './versions';
 
@@ -14,7 +15,13 @@ export function run(): void {
       return;
     }
 
-    const { moved, failures } = guardVersions(inputs());
+    const options = inputs();
+    if (options === null) {
+      core.warning(ABSENT, { title: 'Version check skipped' });
+      return;
+    }
+
+    const { moved, failures } = guardVersions(options);
     report({
       passed: moved,
       failures,

@@ -2,7 +2,6 @@ import { type Change, changesIn, newestReachableTag, requiredIncrement } from '.
 import type { ProjectGroup } from '../../lib/src/config';
 import { type Git, spawnGit } from '../../lib/src/git';
 import {
-  DEFAULTS,
   type Project,
   UsageError,
   readInside,
@@ -14,7 +13,7 @@ import type { GuardOptions } from '../../lib/src/settings';
 import { type Part, type Semver, compare, format, increment, parse } from '../../lib/src/semver';
 import { versionFrom } from '../../lib/src/version';
 
-export { DEFAULTS, UsageError };
+export { UsageError };
 export type { Git, ProjectGroup };
 
 export interface Failure {
@@ -43,7 +42,7 @@ export function guardVersions(options: GuardOptions): Result {
 
   const moved: string[] = [];
   const failures: Failure[] = scanned.map((failure) => ({ ...failure }));
-  const single = (options.projects ?? DEFAULTS.projects).length === 1;
+  const single = options.projects.length === 1;
   // A repository that excepts bump-from-type has not agreed that a type says
   // how far to move, so there is nothing to read the types for.
   const fromType = !(options.except ?? []).includes('bump-from-type');

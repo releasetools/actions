@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { Git } from '../src/git';
 import { UsageError, scan } from '../src/scan';
 
+/** The repository itself, which is what most of these describe. */
+const ONE = [{ path: ['./'], manifest: ['package.json'] }];
+
 /**
  * Which projects a change touched, and what moved in them. Both guards start
  * here, so what is wrong here is wrong in both.
@@ -58,7 +61,7 @@ describe('scan', () => {
   it('treats the repository itself as the project by default', () => {
     const root = repository('.');
 
-    const result = scan({ root, base: 'main', git: fakeGit(['src/thing.ts']) });
+    const result = scan({ root, base: 'main', projects: ONE, git: fakeGit(['src/thing.ts']) });
 
     expect(labels(result)).toEqual([path.basename(root)]);
     expect(result.found[0]?.material).toBe(true);
@@ -70,7 +73,7 @@ describe('scan', () => {
     const result = scan({
       root,
       base: 'main',
-      projects: [{ path: ['one'] }],
+      projects: [{ path: ['one'], manifest: ['package.json'] }],
       git: fakeGit(['one/a.ts', 'two/b.ts']),
     });
 
@@ -84,7 +87,7 @@ describe('scan', () => {
     const result = scan({
       root,
       base: 'main',
-      projects: [{ path: ['.github'] }],
+      projects: [{ path: ['.github'], manifest: ['package.json'] }],
       git: fakeGit(['one/a.ts', '.github/workflows/ci.yml']),
     });
 
@@ -97,7 +100,7 @@ describe('scan', () => {
     const result = scan({
       root,
       base: 'main',
-      projects: [{ path: ['packages/web', 'packages/api', 'tools/build'] }],
+      projects: [{ path: ['packages/web', 'packages/api', 'tools/build'], manifest: ['package.json'] }],
       git: fakeGit(['packages/web/a.ts', 'packages/api/b.ts', 'tools/build/c.ts']),
     });
 
@@ -129,7 +132,7 @@ describe('scan', () => {
     const result = scan({
       root,
       base: 'main',
-      projects: [{ path: ['docs'] }],
+      projects: [{ path: ['docs'], manifest: ['package.json'] }],
       git: fakeGit(['docs/guide.md']),
     });
 
@@ -144,7 +147,7 @@ describe('scan', () => {
   ])('refuses the project pattern %s', (pattern) => {
     const root = repository('packages/api', 'packages/web');
     const run = () => scan({
-      root, base: 'main', projects: [{ path: [pattern] }], git: fakeGit([]),
+      root, base: 'main', projects: [{ path: [pattern], manifest: ['package.json'] }], git: fakeGit([]),
     });
 
     expect(run).toThrow(UsageError);
@@ -153,14 +156,14 @@ describe('scan', () => {
 
   it.each(['missing', 'one/package.json'])('refuses a path that is not a directory: %s', (name) => {
     expect(() => scan({
-      root: repository('one'), base: 'main', projects: [{ path: [name] }], git: fakeGit([]),
+      root: repository('one'), base: 'main', projects: [{ path: [name], manifest: ['package.json'] }], git: fakeGit([]),
     })).toThrow(`project path ${name} is not a directory`);
   });
 
   it.each(['.', './'])('accepts %s as the repository root', (name) => {
     const root = repository('.');
     const result = scan({
-      root, base: 'main', projects: [{ path: [name] }], git: fakeGit(['src/thing.ts']),
+      root, base: 'main', projects: [{ path: [name], manifest: ['package.json'] }], git: fakeGit(['src/thing.ts']),
     });
 
     expect(labels(result)).toEqual([path.basename(root)]);
@@ -168,7 +171,7 @@ describe('scan', () => {
   });
 
   it('refuses a run with nothing to compare against', () => {
-    expect(() => scan({ root: repository('.'), base: '', git: fakeGit([]) })).toThrow(UsageError);
+    expect(() => scan({ root: repository('.'), base: '', projects: ONE, git: fakeGit([]) })).toThrow(UsageError);
   });
 });
 
@@ -183,7 +186,7 @@ describe('what counts as material', () => {
   }
 
   function material(files: string[], options: Record<string, unknown> = {}): boolean | undefined {
-    return scan({ root: repository(), base: 'main', git: fakeGit(files), ...options }).found[0]
+    return scan({ root: repository(), base: 'main', projects: ONE, git: fakeGit(files), ...options }).found[0]
       ?.material;
   }
 
@@ -234,7 +237,7 @@ describe('what counts as material', () => {
     expect(
       material(['CHANGELOG.md', 'package.json'], {
         ignoreFiles: [],
-        projects: [{ path: ['./'], changelog: 'CHANGELOG.md' }],
+        projects: [{ path: ['./'], manifest: ['package.json'], changelog: 'CHANGELOG.md' }],
       }),
     ).toBe(false);
   });
@@ -247,7 +250,7 @@ describe('what counts as material', () => {
 
   it('sees a file git has never been told about', () => {
     const root = repository();
-    const result = scan({ root, base: 'main', git: fakeGit([], ['src/brand-new.ts']) });
+    const result = scan({ root, base: 'main', projects: ONE, git: fakeGit([], ['src/brand-new.ts']) });
 
     expect(result.found[0]?.material).toBe(true);
   });

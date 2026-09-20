@@ -5,10 +5,16 @@ import { type GuardOptions, readSettings } from './settings';
 /**
  * What a guard runs on: the repository's own declaration, and the one thing
  * only the workflow knows.
+ *
+ * Null where the repository declares nothing, which every guard reports as a
+ * warning and then stops.
  */
-export function inputs(): GuardOptions {
+export function inputs(): GuardOptions | null {
   const root = process.cwd();
   const settings = readSettings(root);
+  if (settings === null) {
+    return null;
+  }
   return {
     root,
     // A pull request already says what it is against, so the input is for the

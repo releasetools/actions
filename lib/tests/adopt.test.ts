@@ -78,9 +78,8 @@ describe('the published config CLI', () => {
     ]);
     const requirePackage = createRequire(path.join(installation, 'package.json'));
     const reader = requirePackage('@releasetools/config');
-    expect(reader.settingsFrom('projects:\n  - path: ./')).toEqual(
-      settingsFrom('projects:\n  - path: ./'),
-    );
+    const declaration = 'projects:\n  - path: ./\n    manifest: package.json';
+    expect(reader.settingsFrom(declaration)).toEqual(settingsFrom(declaration));
     const metadata = JSON.parse(fs.readFileSync(path.join(path.dirname(cli), 'package.json'), 'utf8'));
     expect(metadata.dependencies ?? {}).toEqual({});
     expect(metadata.main).toBe('./releasetools-config.js');
@@ -140,17 +139,22 @@ describe('the published config CLI', () => {
     const result = run(root, 'adopt');
 
     expect(result.status).toBe(0);
-    expect(declared(root).projects).toEqual([{ path: ['./'] }]);
+    expect(declared(root).projects).toEqual([{ path: ['./'], manifest: ['VERSION'] }]);
     expect(result.stdout).toContain('skipped package.json declares no version');
     expect(result.stdout).toContain('skipped composer.json is not valid JSON');
-    expect(result.stdout).toContain('no manifest declares a version');
+    expect(result.stdout).toContain('no file here declares a version');
   });
 
-  it('writes a versionless project without a manifest', () => {
+  it('names a placeholder manifest where nothing declares a version', () => {
     const root = repository();
 
-    expect(run(root, 'adopt').status).toBe(0);
-    expect(declared(root).projects).toEqual([{ path: ['./'] }]);
+    const result = run(root, 'adopt');
+
+    // A project says where its version lives, so the starter says where it
+    // would be and why that file is not there yet.
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('no file here declares a version');
+    expect(declared(root).projects).toEqual([{ path: ['./'], manifest: ['VERSION'] }]);
     expect(declared(root).except).toEqual([]);
   });
 

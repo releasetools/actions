@@ -60,8 +60,9 @@ outside its own history, is judged that way throughout.
 ## Configuration
 
 Everything but the base ref comes from `.releasetools.yaml` at the repository
-root, read by every releasetools tool. A repository that keeps no such file is
-one project at its root.
+root, read by every releasetools tool. A repository that keeps no such file
+gets a warning on the pull request and no check: a guessed project would be
+reported on as though somebody had asked for it.
 
 ```yaml
 # How this repository releases, read by every releasetools tool.
@@ -105,17 +106,32 @@ that are not pull requests.
 
 ## Where the version comes from
 
-Every manifest a project holds has to declare the same version, because
-whichever one a client reads is the one that decides whether it updates. One
-it does not hold is not its business. A group that names none is read from
-`package.json`, `pyproject.toml`, `Cargo.toml` or `VERSION`. A project holding
-none of those manifests passes without a version check. A manifest that
-exists but declares no version still fails.
+`manifest` is required, and nothing is guessed from what a directory happens
+to contain. Name every file that carries the version, because a project
+keeping it in two places has to keep them in step:
 
-Any `.json` takes its top-level `version`, `.toml` the version of its
-`package`, `project`, `tool.poetry` or `workspace.package` table, `.yaml` a
-top-level `version:`, `.properties` a `version=` line, and anything else is a
-file holding the version and nothing else.
+```yaml
+projects:
+  - path: plugins/mutex
+    manifest:
+      - .claude-plugin/plugin.json
+      - .codex-plugin/plugin.json
+    changelog: CHANGELOG.md
+```
+
+Every one of those has to declare the same version, because whichever one a
+client reads is the one that decides whether it updates. A declared manifest
+that is not there is not read, so one list can cover a group whose members
+differ, and a project holding none of the files it names passes without a
+version check. One that exists and declares no version still fails.
+
+| file | where the version is read from |
+| --- | --- |
+| `*.json` | the top-level `version` |
+| `*.toml` | the `version` of its `package`, `project`, `tool.poetry` or `workspace.package` table |
+| `*.yaml`, `*.yml` | a top-level `version:` |
+| `*.properties` | a `version=` line |
+| anything else | the whole file, which holds the version and nothing else |
 
 A version that is not a semantic one fails naming it. `1.0` and `v1.2` are not
 versions a range, a lockfile or a resolver can read.

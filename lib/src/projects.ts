@@ -22,11 +22,7 @@ export interface Project {
  * Resolves named directories, refusing patterns and paths that are not directories.
  * `./` names the repository root. A directory belongs to the first group naming it.
  */
-export function resolveProjects(
-  root: string,
-  groups: readonly ProjectGroup[],
-  fallbackManifests: readonly string[],
-): Project[] {
+export function resolveProjects(root: string, groups: readonly ProjectGroup[]): Project[] {
   if (groups.length === 0) {
     throw new UsageError('no project to check; name one, or use ./ for the repository itself');
   }
@@ -55,7 +51,7 @@ export function resolveProjects(
         path: relative,
         label: relative === '' ? path.basename(root) : relative,
         directory,
-        manifests: group.manifest ?? fallbackManifests,
+        manifests: group.manifest,
         changelog: group.changelog ?? '',
       });
     }

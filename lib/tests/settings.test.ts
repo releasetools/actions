@@ -21,7 +21,11 @@ describe('readSettings', () => {
   }
 
   function settings(contents: string) {
-    return readSettings(repository(contents));
+    const declared = readSettings(repository(contents));
+    if (declared === null) {
+      throw new Error('expected a declaration');
+    }
+    return declared;
   }
 
   function projects(contents: string) {
@@ -34,8 +38,10 @@ describe('readSettings', () => {
     }
   });
 
-  it('reads a repository that keeps no file as one project at its root', () => {
-    expect(readSettings(repository())).toEqual({ except: [] });
+  it('reads a repository that keeps no file as nothing to check', () => {
+    // A guessed project is a guessed report. The guards warn and stop.
+    expect(readSettings(repository())).toBeNull();
+    expect(readSettings(repository('\n  \n'))).toBeNull();
   });
 
   it('names the spelling that would otherwise be read as silence', () => {
@@ -75,8 +81,21 @@ projects:
     ).toEqual([{ path: ['packages/api', 'tools/build'], manifest: ['package.json', 'VERSION'] }]);
   });
 
-  it('leaves an entry that names no manifest to the default', () => {
-    expect(projects('projects:\n  - path: ./')).toEqual([{ path: ['./'] }]);
+  it('refuses an entry that says nothing about where the version is', () => {
+    expect(() => projects('projects:\n  - path: ./')).toThrow(/needs a manifest/);
+  });
+
+  it('takes every manifest a project keeps its version in', () => {
+    expect(
+      projects(
+        'projects:\n  - path: plugins/mutex\n    manifest:\n      - .claude-plugin/plugin.json\n      - .codex-plugin/plugin.json',
+      ),
+    ).toEqual([
+      {
+        path: ['plugins/mutex'],
+        manifest: ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json'],
+      },
+    ]);
   });
 
   it('reads the command that sets a project version', () => {
@@ -86,13 +105,16 @@ projects:
   });
 
   it('refuses a bump command that never names the version', () => {
-    expect(() => projects('projects:\n  - path: ./\n    bump: uv version')).toThrow(
+    expect(() =>
+      projects('projects:\n  - path: ./\n    manifest: VERSION\n    bump: uv version'),
+    ).toThrow(
       /must say where the version goes/,
     );
   });
 
   it('reads the ignores and the case flag', () => {
     expect(settings('ignore-files:\n  - docs/**\n  - "*.md"\ncase-sensitive: true')).toEqual({
+      projects: [],
       ignoreFiles: ['docs/**', '*.md'],
       caseSensitive: true,
       except: [],
@@ -103,7 +125,9 @@ projects:
     // Emptying it is a repository saying every file counts, which is not what
     // saying nothing means.
     expect(settings('ignore-files: []').ignoreFiles).toEqual([]);
-    expect(settings('projects:\n  - path: ./').ignoreFiles).toBeUndefined();
+    expect(
+      settings('projects:\n  - path: ./\n    manifest: package.json').ignoreFiles,
+    ).toBeUndefined();
   });
 
   it('reads how a release is cut, and leaves later keys alone', () => {
@@ -124,14 +148,11 @@ projects:
   });
 
   it('leaves the keys other tools read alone', () => {
-    expect(settings('release:\n  notes: whatever\nprojects:\n  - path: ./').projects).toEqual([
-      { path: ['./'] },
-    ]);
-  });
-
-  it('reads an empty file as nothing said', () => {
-    expect(settings('')).toEqual({ except: [] });
-    expect(settings('\n  \n')).toEqual({ except: [] });
+    expect(
+      settings(
+        'release:\n  notes: whatever\nprojects:\n  - path: ./\n    manifest: package.json',
+      ).projects,
+    ).toEqual([{ path: ['./'], manifest: ['package.json'] }]);
   });
 
   it('refuses projects that are not a list of entries', () => {
@@ -150,7 +171,11 @@ projects:
   });
 
   it('refuses a changelog that is not one name', () => {
-    expect(() => projects('projects:\n  - path: ./\n    changelog:\n      - a\n      - b')).toThrow(
+    expect(() =>
+      projects(
+        'projects:\n  - path: ./\n    manifest: VERSION\n    changelog:\n      - a\n      - b',
+      ),
+    ).toThrow(
       /changelog must be the name of one file/,
     );
   });
@@ -160,9 +185,9 @@ projects:
     expect(() => projects('projects:\n  - path: ./\n    manifest: ../../etc/passwd')).toThrow(
       /manifest must be inside/,
     );
-    expect(() => projects('projects:\n  - path: ./\n    changelog: a/../../b.md')).toThrow(
-      /changelog must be inside/,
-    );
+    expect(() =>
+      projects('projects:\n  - path: ./\n    manifest: VERSION\n    changelog: a/../../b.md'),
+    ).toThrow(/changelog must be inside/);
   });
 
   it('refuses an absolute path', () => {
