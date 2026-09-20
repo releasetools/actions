@@ -48,29 +48,24 @@ Authentication is [trusted publishing](https://docs.npmjs.com/trusted-publishers
 no token in the repository, an OIDC token minted per run from the
 `id-token: write` permission, and provenance generated from the same identity.
 
-A trusted publisher can only be configured for a package that already exists,
-so the first publish is the one exception:
+That is already configured, as:
 
-1. Create a granular access token on npmjs.com with write access to
-   `@releasetools/config`, and add it to this repository as the `NPM_TOKEN`
-   secret.
-2. Dispatch the workflow. That publishes `0.1.0` and creates the package.
-3. On npmjs.com, open the package, then **Settings → Trusted publisher →
-   GitHub Actions**, and fill in:
+| field | value |
+| --- | --- |
+| Organization or user | `releasetools` |
+| Repository | `actions` |
+| Workflow filename | `publish-config.yml` |
+| Environment | empty |
 
-   | field | value |
-   | --- | --- |
-   | Organization or user | `releasetools` |
-   | Repository | `actions` |
-   | Workflow filename | `publish-config.yml` |
-   | Environment | leave empty |
+Renaming the workflow file breaks it, and npm says nothing until a publish
+fails, so rename the trusted publisher on npmjs.com in the same change.
 
-4. Delete the `NPM_TOKEN` secret from the repository. npm prefers the OIDC
-   token over any token in the environment, so nothing else changes.
+Every publish carries provenance linking the tarball to the commit and the run
+that built it, and no long-lived credential exists in this repository to leak.
 
-Every publish after that carries provenance linking the tarball to the commit
-and the workflow run that built it, and no long-lived credential exists to
-leak.
+A package that does not exist yet cannot have a trusted publisher, so a new
+package is created by publishing its first version from a machine with `npm
+login` and a one-time password, and configured afterwards.
 
 ## Release layout
 
