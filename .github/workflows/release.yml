@@ -83,7 +83,7 @@ jobs:
       # the heading the way changelog-guard reads it on every pull request.
       - name: Read the release notes
         id: section
-        uses: ./changelog-section
+        uses: ./extract-release-notes
         with:
           version: ${{ inputs.version }}
 
@@ -146,7 +146,7 @@ jobs:
           set -euo pipefail
           mkdir -p stage
           cp LICENSE stage/
-          for action in signed-push versions-guard changelog-guard changelog-section; do
+          for action in signed-push versions-guard changelog-guard extract-release-notes; do
             mkdir -p "stage/$action"
             cp "$action/action.yml" "stage/$action/"
             cp "$action/README.md" "stage/$action/"

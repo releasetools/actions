@@ -114,14 +114,14 @@ A project holding no manifest passes the version guard. A version is read out
 of `package.json`, `pyproject.toml`, `Cargo.toml`, a `VERSION` file or whatever
 else a group names. Files that are not committed yet count as well as the diff.
 
-### `changelog-section`
+### `extract-release-notes`
 
 Hand one version's changelog section to whatever publishes the release. It
 reads the heading the way `changelog-guard` reads it, out of the same module, so
 the entry a pull request was made to write is the entry the release publishes.
 
 ```yaml
-- uses: releasetools/actions/changelog-section@v0
+- uses: releasetools/actions/extract-release-notes@v0
   id: notes
   with:
     version: ${{ inputs.version }}
@@ -136,7 +136,7 @@ the entry a pull request was made to write is the entry the release publishes.
 `found` says whether there was a section at all, so a workflow decides for
 itself whether a release nothing describes should stop.
 
-See the [`changelog-section` guide](changelog-section/).
+See the [`extract-release-notes` guide](extract-release-notes/).
 
 More actions are planned for common cross-workflow release patterns.
 
