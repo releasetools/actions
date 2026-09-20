@@ -74,6 +74,25 @@ describe('guardVersions', () => {
     expect(result).toEqual({ moved: [], failures: [] });
   });
 
+  it('passes a changed project holding no manifest', () => {
+    const root = repository('0.1.0');
+    fs.unlinkSync(path.join(root, 'package.json'));
+
+    const result = check(root, fakeGit({ subjects: ['feat: add a guide'] }));
+
+    expect(result).toEqual({ moved: [], failures: [] });
+  });
+
+  it('refuses a manifest that exists but declares no version', () => {
+    const root = repository('0.1.0');
+    fs.writeFileSync(path.join(root, 'package.json'), '{}\n');
+
+    const result = check(root, fakeGit({ subjects: ['fix: one'] }));
+
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]?.message).toBe('package.json declares no version');
+  });
+
   it('asks for a patch after a fix, and takes one', () => {
     const result = check(
       repository('0.1.1'),

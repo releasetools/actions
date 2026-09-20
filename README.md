@@ -99,17 +99,20 @@ at its root.
 
 ```yaml
 projects:
-  - path: packages/*
+  - path: [packages/api, packages/web]
     manifest: package.json
     changelog: CHANGELOG.md
-  - path: crates/*
+  - path: crates/core
     manifest: Cargo.toml
 ```
 
-A project is any directory with its own version, from the repository itself to
-every package in a workspace. A version is read out of `package.json`,
-`pyproject.toml`, `Cargo.toml`, a `VERSION` file or whatever else a group
-names, and files that are not committed yet count as well as the diff.
+`path` names one directory or a list of directories. Patterns such as
+`packages/*` are refused. Only named projects are checked, and a directory
+named by more than one group belongs to the first.
+
+A project holding no manifest passes the version guard. A version is read out
+of `package.json`, `pyproject.toml`, `Cargo.toml`, a `VERSION` file or whatever
+else a group names. Files that are not committed yet count as well as the diff.
 
 ### `changelog-section`
 

@@ -30,7 +30,7 @@ until one does:
 
 ```yaml
 projects:
-  - path: packages/*
+  - path: [packages/api, packages/web]
     manifest: package.json
     changelog: CHANGELOG.md
 ```

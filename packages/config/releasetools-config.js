@@ -271,7 +271,7 @@ function projectsFrom(value, where) {
   if (!Array.isArray(value)) {
     throw new ConfigError(
       `${where} must be a list of entries, each with a path, for example:\n` +
-        '  projects:\n    - path: packages/*\n      manifest: package.json\n' +
+        '  projects:\n    - path: packages/api\n      manifest: package.json\n' +
         '      changelog: CHANGELOG.md',
     );
   }
