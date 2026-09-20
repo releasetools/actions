@@ -1,4 +1,4 @@
-name: 'Changelog section'
+name: 'Extract release notes'
 description: >-
   Hand one version's changelog section to whatever publishes the
   release. It reads the heading the way changelog-guard reads it, so the
