@@ -1,7 +1,7 @@
 {
   "name": "@releasetools/config",
-  "version": "0.1.0",
-  "description": "Reads `.releasetools.yaml`, the file every tool in the releasetools suite takes its configuration from.",
+  "version": "0.2.0",
+  "description": "Reads .releasetools.yaml and writes starter configuration with config adopt.",
   "license": "Apache-2.0",
   "main": "./releasetools-config.js",
   "exports": {
@@ -12,7 +12,11 @@
   },
   "files": [
     "releasetools-config.js",
-    "releasetools-config.d.ts"
+    "releasetools-config.d.ts",
+    "CHANGELOG.md",
+    "cli.js",
+    "version.js",
+    "version.d.ts"
   ],
   "repository": {
     "type": "git",
@@ -21,5 +25,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "bin": {
+    "config": "./cli.js"
   }
 }
