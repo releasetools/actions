@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
 import { inputs, report } from '../../lib/src/action';
+import { ABSENT } from '../../lib/src/settings';
 import { skipRequested } from '../../lib/src/skip';
 import { guardChangelogs } from './changelogs';
 
@@ -12,7 +13,13 @@ export function run(): void {
       return;
     }
 
-    const { recorded, failures } = guardChangelogs(inputs());
+    const options = inputs();
+    if (options === null) {
+      core.warning(ABSENT, { title: 'Changelog check skipped' });
+      return;
+    }
+
+    const { recorded, failures } = guardChangelogs(options);
     report({
       passed: recorded,
       failures,

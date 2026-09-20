@@ -134,6 +134,12 @@ function writeConfig(root) {
     for (const { name } of found) {
       lines.push(`      - ${name}`);
     }
+  } else {
+    // A project says where its version lives, so there is nothing to write
+    // but a placeholder and the reason it is one.
+    lines.push('    # No file here declares a version. Name the one that will,');
+    lines.push('    # or create this one holding the version and nothing else.');
+    lines.push('    manifest: VERSION');
   }
   if (changelog) {
     lines.push(`    changelog: ${changelog}`);
@@ -148,8 +154,8 @@ function writeConfig(root) {
     report.push(`  skipped ${reason}`);
   }
   if (found.length === 0) {
-    report.push('  no manifest declares a version, so none is named');
-    report.push('  a project that has one names the file under manifest:');
+    report.push('  no file here declares a version, so VERSION is named as a placeholder');
+    report.push('  name the file that carries it, or create that one');
   }
   const versions = [...new Set(found.map(({ version }) => version))];
   if (versions.length > 1) {

@@ -10,10 +10,13 @@ import { UsageError } from './usage-error';
 export { UsageError };
 export type { Git, Project };
 
-/** What the caller gets when it says nothing. */
+/**
+ * What the caller gets when it says nothing.
+ *
+ * Only the ignores have a default. Which projects a repository holds and where
+ * each keeps its version are declared, never guessed.
+ */
 export const DEFAULTS = {
-  projects: [{ path: ['./'] }] as readonly ProjectGroup[],
-  manifests: ['package.json', 'pyproject.toml', 'Cargo.toml', 'VERSION'],
   ignoreFiles: ['CHANGELOG.md', 'README.md', 'LICENSE'],
 } as const;
 
@@ -22,8 +25,8 @@ export interface ScanOptions {
   root: string;
   /** Ref the working tree is compared against, resolved to the fork point. */
   base: string;
-  projects?: readonly ProjectGroup[];
-  manifests?: readonly string[];
+  /** The projects the repository declared. A run with none checks nothing. */
+  projects: readonly ProjectGroup[];
   ignoreFiles?: readonly string[];
   caseSensitive?: boolean;
   git?: Git;
@@ -66,8 +69,7 @@ export const ESCAPED = 'resolves outside the repository, so it is not read';
 export function scan(options: ScanOptions): Scan {
   const {
     base,
-    projects = DEFAULTS.projects,
-    manifests = DEFAULTS.manifests,
+    projects,
     ignoreFiles = DEFAULTS.ignoreFiles,
     caseSensitive = false,
     git = spawnGit,
@@ -85,7 +87,7 @@ export function scan(options: ScanOptions): Scan {
   const found: Scanned[] = [];
   const failures: ScanFailure[] = [];
 
-  for (const project of resolveProjects(root, projects, manifests)) {
+  for (const project of resolveProjects(root, projects)) {
     if (inside(root, project.path === '' ? '.' : project.path) === 'outside') {
       failures.push({ project: project.label, message: `${project.label} ${ESCAPED}` });
       continue;

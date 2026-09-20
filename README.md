@@ -94,8 +94,9 @@ See the [`changelog-guard` guide](changelog-guard/).
 ### What a guard reads
 
 Both read `.releasetools.yaml` at the repository root, the same file every
-releasetools tool reads. A repository that keeps no such file is one project
-at its root.
+releasetools tool reads. A repository that keeps no such file gets a warning
+and no check: a guessed project would be reported on as though somebody had
+asked for it.
 
 ```yaml
 projects:
@@ -110,9 +111,12 @@ projects:
 `packages/*` are refused. Only named projects are checked, and a directory
 named by more than one group belongs to the first.
 
-A project holding no manifest passes the version guard. A version is read out
-of `package.json`, `pyproject.toml`, `Cargo.toml`, a `VERSION` file or whatever
-else a group names. Files that are not committed yet count as well as the diff.
+`manifest` is required and names every file carrying that project's version,
+since a project keeping it in two places has to keep them in step. A version is
+read out of any `.json`, `.toml`, `.yaml` or `.properties` file, or one holding
+the version and nothing else; a project holding none of the files it names
+passes the version guard. Files that are not committed yet count as well as the
+diff.
 
 ### `extract-release-notes`
 

@@ -2,8 +2,8 @@
 export interface ProjectGroup {
   /** Explicit directory paths. Patterns are refused by the guards. */
   path: string[];
-  /** Files that may declare the version. Every one a project holds must agree. */
-  manifest?: string[];
+  /** Files that carry the version. Every one of them must declare the same. */
+  manifest: string[];
   /** Changelog to check, relative to a project. Absent asks for none. */
   changelog?: string;
   /** The command that sets this project's version, with `{version}` in it. */
@@ -34,7 +34,7 @@ export interface Declared {
 
 export const CONFIG_FILE: string;
 export const MISSPELLED: string;
-export const MANIFESTS: string[];
+export const ABSENT: string;
 export const IGNORED: string[];
 
 export class ConfigError extends Error {}

@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
+  ABSENT,
   CONFIG_FILE,
   ConfigError,
   MISSPELLED,
@@ -10,11 +11,11 @@ import type { ProjectGroup } from './config';
 import type { ScanOptions } from './scan';
 import { UsageError } from './usage-error';
 
-export { CONFIG_FILE };
+export { ABSENT, CONFIG_FILE };
 
 export interface Settings {
-  /** Groups of projects. Absent leaves the repository itself as the project. */
-  projects?: ProjectGroup[];
+  /** The projects the repository declared. Nothing is guessed. */
+  projects: ProjectGroup[];
   /** Files whose edits do not count as a project changing. */
   ignoreFiles?: string[];
   /** Whether those patterns match case exactly. */
@@ -33,10 +34,13 @@ export interface GuardOptions extends ScanOptions {
  *
  * A guard is configured by the repository rather than by the workflow that
  * calls it, so the same declaration serves every tool that reads this file and
- * including the action is the whole of switching a guard on. A repository that
- * keeps no such file is one project at its root.
+ * including the action is the whole of switching a guard on.
+ *
+ * Null where the repository declares nothing. Guessing at a project would mean
+ * reporting on whatever was guessed, which is worse than saying there is
+ * nothing to check.
  */
-export function readSettings(root: string): Settings {
+export function readSettings(root: string): Settings | null {
   let text: string;
   try {
     text = fs.readFileSync(path.join(root, CONFIG_FILE), 'utf8');
@@ -44,17 +48,17 @@ export function readSettings(root: string): Settings {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       if (fs.existsSync(path.join(root, MISSPELLED))) {
         throw new UsageError(
-          `${MISSPELLED} is not read. The file is ${CONFIG_FILE}; rename it, or the ` +
-            'repository is judged as one project at its root with nothing declared.',
+          `${MISSPELLED} is not read. The file is ${CONFIG_FILE}; rename it, or nothing ` +
+            'in this repository is checked at all.',
         );
       }
-      return { except: [] };
+      return null;
     }
     throw new UsageError(`cannot read ${CONFIG_FILE}: ${message(err)}`);
   }
 
   if (text.trim() === '') {
-    return { except: [] };
+    return null;
   }
 
   // One reader, shared with the release-notes plugin, so the two cannot
@@ -67,7 +71,7 @@ export function readSettings(root: string): Settings {
   }
 
   return {
-    ...(declared.projects.length > 0 ? { projects: declared.projects as ProjectGroup[] } : {}),
+    projects: declared.projects as ProjectGroup[],
     ...(declared.ignoreFiles === null ? {} : { ignoreFiles: declared.ignoreFiles }),
     ...(declared.caseSensitive ? { caseSensitive: true } : {}),
     except: declared.except,

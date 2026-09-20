@@ -2,7 +2,6 @@ import { carries } from '../../lib/src/changelog';
 import type { ProjectGroup } from '../../lib/src/config';
 import { type Git, spawnGit } from '../../lib/src/git';
 import {
-  DEFAULTS,
   UsageError,
   readInside,
   rootOf,
@@ -12,7 +11,7 @@ import {
 import type { GuardOptions } from '../../lib/src/settings';
 import { versionFrom } from '../../lib/src/version';
 
-export { DEFAULTS, UsageError };
+export { UsageError };
 export type { Git, ProjectGroup };
 
 export interface Failure {

@@ -3,6 +3,31 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.6.0 - 2026-09-20
+
+### Changed
+
+`manifest` is required in every `projects` entry, and nothing is inferred from
+what a directory happens to contain. Name every file that carries the
+project's version: `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`
+are one project keeping its version in two places, and both have to say the
+same thing. Which files a version can be read out of is documented rather than
+guessed at: any `.json`, `.toml`, `.yaml` or `.properties` file, or one holding
+the version and nothing else.
+
+A repository with no `.releasetools.yaml` is no longer judged as one project at
+its root. Each guard posts a warning saying nothing is declared, and does not
+run. A guessed project is reported on as though somebody had asked for it,
+which is worse than saying there is nothing to check.
+
+A pattern in `projects[].path` is refused by the reader as well as by the
+guards, so every tool that reads the file gives the same answer rather than
+each one deciding for itself.
+
+`npx @releasetools/config adopt` names `VERSION` as a placeholder where no
+file in the repository declares a version, and says why, since a project has
+to say where its version lives.
+
 ## 0.5.0 - 2026-09-20
 
 ### Added
