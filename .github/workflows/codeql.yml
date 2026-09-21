@@ -1,8 +1,9 @@
 name: CodeQL
 
 on:
+  # Every pull request, for the reason ci.yml gives: a stacked branch targets
+  # the one below it, and a filter on `main` leaves it unscanned.
   pull_request:
-    branches: [main]
   push:
     branches: [main]
   schedule:
