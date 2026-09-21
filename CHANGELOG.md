@@ -3,6 +3,14 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.9.0 - 2026-09-22
+
+### Added
+
+`npx @releasetools/config adopt` writes a `release:` block and each project's
+`bump` command, so a repository that adopts the conventions has declared what
+cuts a release reads rather than only what the guards read.
+
 ## 0.8.0 - 2026-09-22
 
 ### Changed

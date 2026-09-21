@@ -34,10 +34,27 @@ npx @releasetools/config adopt
 ```
 
 The command writes `.releasetools.yaml` at the Git root, declaring that
-directory as one project. It names the manifests that declare a version and
-`CHANGELOG.md` when present. An existing `.releasetools.yaml` is preserved.
-Review the file before committing it; a workspace needs each project named
-explicitly.
+directory as one project. It names the manifests that declare a version,
+`CHANGELOG.md` when present, and the `bump` command the manifest's ecosystem
+ships. An existing `.releasetools.yaml` is preserved. Review the file before
+committing it; a workspace needs each project named explicitly.
+
+It also writes a `release:` block, which is what cuts a release reads. Only
+`branch` and `merge` are filled in, at their defaults. The three that name
+something in your repository are left commented, with the workflow filenames
+found here listed beside them: guessing which one publishes is worse than a
+line somebody fills in.
+
+```yaml
+release:
+  branch: main
+  merge: squash
+  # The workflows here: publish.yml, tests.yml
+  # checks: the one that must be green on the commit a tag will name
+  # publish: the one a tag starts
+  # registry: a URL answering 404 for a version nobody has released,
+  #           with {version} where the version goes
+```
 
 The command checks these filenames using the same version reader as the
 guards:
@@ -61,8 +78,9 @@ npx @releasetools/config adopt --dir '../my project'
 ```
 
 The command prints the Claude and Codex plugin commands for you to run.
-The default plugin is `release-notes@release-tools`. To supply your own
-plugin list, repeat `--plugin`:
+The default plugins are `release-notes@release-tools` and
+`release@release-tools`, which are the two that read the file it wrote. To
+supply your own list, repeat `--plugin`:
 
 ```sh
 npx @releasetools/config adopt \

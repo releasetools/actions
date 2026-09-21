@@ -19,7 +19,7 @@ const MARKETPLACES = {
   mihaibojin: 'MihaiBojin/agent-plugins',
 };
 
-const DEFAULT_PLUGINS = ['release-notes@release-tools'];
+const DEFAULT_PLUGINS = ['release-notes@release-tools', 'release@release-tools'];
 
 /** The manifests a starter declaration can name, in the order they are tried. */
 const MANIFESTS = [
@@ -42,6 +42,19 @@ const HEADER = `# How this repository releases, read by every releasetools tool.
 # Conventions: https://github.com/releasetools/conventions
 # Tools:       https://github.com/releasetools
 `;
+
+/**
+ * The command each ecosystem ships for setting a version, by the manifest that
+ * names it. Nothing here parses or rewrites a manifest, so a project that
+ * keeps its version somewhere none of these know sets it by hand.
+ */
+const BUMPS = {
+  'package.json': 'npm version {version} --no-git-tag-version',
+  'deno.json': 'deno run -A jsr:@deno/bump {version}',
+  'pyproject.toml': 'uv version {version}',
+  'Cargo.toml': 'cargo set-version {version}',
+  'pubspec.yaml': 'dart pub version {version}',
+};
 
 function main(argv) {
   if (argv.length === 0 || argv[0] === '--help' || argv[0] === '-h') {
@@ -103,6 +116,41 @@ function repositoryRoot(dir) {
   }
 }
 
+/**
+ * How a release is cut, as far as a starter can honestly say.
+ *
+ * Only `branch` and `merge` have defaults worth writing down, and they are
+ * written as themselves rather than left out, because the next reader is
+ * deciding whether to change them. The three that name something in this
+ * repository are commented, with the workflows found here listed beside them:
+ * a guess at which one publishes is worse than a line somebody has to fill in.
+ */
+function releaseBlock(root) {
+  let workflows = [];
+  try {
+    workflows = fs
+      .readdirSync(path.join(root, '.github', 'workflows'), { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /\.ya?ml$/.test(entry.name))
+      .map((entry) => entry.name)
+      .sort();
+  } catch {
+    // A repository with no workflows is a repository with nothing to name.
+  }
+
+  const found = workflows.length === 0 ? 'none here' : workflows.join(', ');
+  return [
+    '',
+    'release:',
+    '  branch: main',
+    '  merge: squash',
+    `  # The workflows here: ${found}`,
+    '  # checks: the one that must be green on the commit a tag will name',
+    '  # publish: the one a tag starts',
+    '  # registry: a URL answering 404 for a version nobody has released,',
+    '  #           with {version} where the version goes',
+  ];
+}
+
 /** A starter declaration, describing what is actually in the repository. */
 function writeConfig(root) {
   const file = path.join(root, CONFIG_FILE);
@@ -144,6 +192,11 @@ function writeConfig(root) {
   if (changelog) {
     lines.push(`    changelog: ${changelog}`);
   }
+  const bump = found.map((entry) => BUMPS[entry.name]).find((command) => command);
+  if (bump) {
+    lines.push(`    bump: ${bump}`);
+  }
+  lines.push(...releaseBlock(root));
   lines.push('', 'conventions:', '  except: []', '');
   const text = lines.join('\n');
   settingsFrom(text);

@@ -74,7 +74,12 @@ describe('the published config CLI', () => {
 
     expect(output).toContain('wrote .releasetools.yaml');
     expect(declared(root).projects).toEqual([
-      { path: ['./'], manifest: ['package.json'], changelog: 'CHANGELOG.md' },
+      {
+        path: ['./'],
+        manifest: ['package.json'],
+        changelog: 'CHANGELOG.md',
+        bump: 'npm version {version} --no-git-tag-version',
+      },
     ]);
     const requirePackage = createRequire(path.join(installation, 'package.json'));
     const reader = requirePackage('@releasetools/config');
@@ -116,7 +121,9 @@ describe('the published config CLI', () => {
     const root = repository({ [file]: text });
 
     expect(run(root, 'adopt').status).toBe(0);
-    expect(declared(root).projects).toEqual([{ path: ['./'], manifest: [file] }]);
+    const [group] = declared(root).projects;
+    expect(group?.path).toEqual(['./']);
+    expect(group?.manifest).toEqual([file]);
   });
 
   it('names all manifests and reports different versions', () => {
@@ -175,7 +182,9 @@ describe('the published config CLI', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('claude plugin marketplace add releasetools/agent-plugins --scope project');
     expect(result.stdout).toContain('claude plugin install release-notes@release-tools --scope project');
+    expect(result.stdout).toContain('claude plugin install release@release-tools --scope project');
     expect(result.stdout).toContain('codex plugin add release-notes@release-tools');
+    expect(result.stdout).toContain('codex plugin add release@release-tools');
     expect(fs.readdirSync(root).sort()).toEqual(['.git', '.releasetools.yaml']);
   });
 
@@ -223,6 +232,46 @@ describe('the published config CLI', () => {
       expect(fs.readdirSync(root)).toEqual([]);
     },
   );
+
+  it('declares the bump command the manifest ships, and a release block', () => {
+    const root = repository({
+      'pyproject.toml': '[project]\nname = "x"\nversion = "0.1.0"\n',
+      'CHANGELOG.md': '# Changes\n',
+      '.github/workflows/tests.yml': 'on: push\n',
+      '.github/workflows/publish.yml': 'on: push\n',
+    });
+    const result = run(root, 'adopt');
+
+    expect(result.status).toBe(0);
+    expect(declared(root).projects).toEqual([
+      {
+        path: ['./'],
+        manifest: ['pyproject.toml'],
+        changelog: 'CHANGELOG.md',
+        bump: 'uv version {version}',
+      },
+    ]);
+    expect(declared(root).release).toEqual({ branch: 'main', merge: 'squash' });
+
+    // The three that name something here are a person's to fill in, and the
+    // workflows found are listed so they can be.
+    const text = fs.readFileSync(path.join(root, '.releasetools.yaml'), 'utf8');
+    expect(text).toContain('# The workflows here: publish.yml, tests.yml');
+    expect(text).toContain('# checks:');
+    expect(text).toContain('# publish:');
+    expect(text).toContain('# registry:');
+  });
+
+  it('writes the release block where the repository has no workflows', () => {
+    const root = repository({ 'package.json': '{"version":"1.0.0"}' });
+    const result = run(root, 'adopt');
+
+    expect(result.status).toBe(0);
+    expect(declared(root).release).toEqual({ branch: 'main', merge: 'squash' });
+    const text = fs.readFileSync(path.join(root, '.releasetools.yaml'), 'utf8');
+    expect(text).toContain('# The workflows here: none here');
+    expect(text).toContain('bump: npm version {version} --no-git-tag-version');
+  });
 
   it('requires the adopt subcommand', () => {
     const root = directory();
