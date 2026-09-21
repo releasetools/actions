@@ -3,6 +3,24 @@
 Newest first. Each version here is one npm published: `0.2.0` was written and
 never dispatched, so what it described shipped in `0.3.0`.
 
+## 0.5.0 - 2026-09-22
+
+### Added
+
+`adopt` writes a `release:` block, which is what cuts a release reads. Only
+`branch` and `merge` are filled in, at their defaults. The three that name
+something in the repository are left commented, with the workflow filenames
+found there listed beside them, because guessing which one publishes is worse
+than a line somebody fills in.
+
+`adopt` writes each project's `bump` command where the manifest's ecosystem
+ships one: `npm version`, `uv version`, `cargo set-version`, `dart pub
+version`, `deno bump`. A project whose manifest is none of those sets its
+version by hand, as before.
+
+`release@release-tools` joins the default plugin list. It and the release
+notes plugin are the two that read the file this writes.
+
 ## 0.4.0 - 2026-09-21
 
 ### Added
