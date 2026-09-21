@@ -138,25 +138,34 @@ describe('guardVersions', () => {
     expect(result.failures).toEqual([]);
   });
 
-  it('asks for a major after a breaking change, at and above 1.0.0', () => {
+  it('asks for a minor after a breaking change, at and above 1.0.0', () => {
     const result = check(
-      repository('1.3.0'),
+      repository('1.2.1'),
       fakeGit({ subjects: ['feat!: rename the output'], was: '1.2.0' }),
     );
 
     expect(result.failures).toHaveLength(1);
-    expect(result.failures[0]?.message).toContain('asks for at least 2.0.0 after 1.2.0');
+    expect(result.failures[0]?.message).toContain('asks for at least 1.3.0 after 1.2.0');
     expect(result.failures[0]?.message).toContain('a breaking change');
+  });
+
+  it('never asks for a major, whatever broke', () => {
+    const result = check(
+      repository('1.3.0'),
+      fakeGit({ subjects: ['remove!: drop the old output'], was: '1.2.0' }),
+    );
+
+    expect(result.failures).toEqual([]);
   });
 
   it('reads a BREAKING CHANGE footer as breaking', () => {
     const result = check(
-      repository('1.3.0'),
+      repository('1.2.1'),
       fakeGit({ subjects: ['feat: rename the output\x1fBREAKING CHANGE: use the new one'], was: '1.2.0' }),
     );
 
     expect(result.failures).toHaveLength(1);
-    expect(result.failures[0]?.message).toContain('at least 2.0.0');
+    expect(result.failures[0]?.message).toContain('at least 1.3.0');
   });
 
   it('lets a minor already claimed absorb a later patch', () => {

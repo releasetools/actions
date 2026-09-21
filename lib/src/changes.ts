@@ -26,7 +26,7 @@ export const TYPES: Readonly<Record<string, { part: Part | null; section: string
   fix: { part: 'patch', section: 'Fixed' },
   perf: { part: 'patch', section: 'Changed' },
   deprecate: { part: 'minor', section: 'Deprecated' },
-  remove: { part: 'major', section: 'Removed' },
+  remove: { part: 'minor', section: 'Removed' },
   security: { part: 'patch', section: 'Security' },
   refactor: { part: null, section: null },
   test: { part: null, section: null },
@@ -85,13 +85,17 @@ export function changesIn(git: Git, root: string, range: string, pathspec: strin
  * The largest increment the changes imply, or null when none of them moves a
  * version. A breaking change outranks its own type, and one `feat` among forty
  * fixes is a minor.
+ *
+ * The minor is as far as this goes. Nothing derives the major: a release
+ * increments it because somebody was asked and said so, and a commit subject
+ * cannot say whether a release is the one that renames the product.
  */
 export function requiredIncrement(changes: readonly Change[]): Part | null {
-  const rank: Record<Part, number> = { patch: 1, minor: 2, major: 3 };
+  const rank: Record<Part, number> = { patch: 1, minor: 2 };
   let largest: Part | null = null;
 
   for (const change of changes) {
-    const part = change.breaking ? 'major' : (change.type ? TYPES[change.type]?.part ?? null : null);
+    const part = change.breaking ? 'minor' : (change.type ? TYPES[change.type]?.part ?? null : null);
     if (part === null) {
       continue;
     }
