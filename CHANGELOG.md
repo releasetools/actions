@@ -3,6 +3,15 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.7.0 - 2026-09-21
+
+### Added
+
+`release.merge` is read out of `.releasetools.yaml` and checked like the keys
+beside it: `squash`, `rebase` or `merge`, saying how a release's pull request
+lands. The guards act on none of the release block, so nothing they report
+changes.
+
 ## 0.6.0 - 2026-09-20
 
 ### Changed

@@ -139,6 +139,7 @@ projects:
     // is not a reason to fail a pull request.
     expect(declared).not.toHaveProperty('release');
     expect(() => settings('release:\n  checks: []')).toThrow(/checks must be a name/);
+    expect(() => settings('release:\n  merge: []')).toThrow(/merge must be a name/);
   });
 
   it('reads the conventions a repository does not follow', () => {

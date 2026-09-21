@@ -1,6 +1,6 @@
 {
   "name": "@releasetools/config",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Reads .releasetools.yaml and writes starter configuration with config adopt.",
   "license": "Apache-2.0",
   "main": "./releasetools-config.js",
