@@ -32,12 +32,17 @@ check on.
 | --- | --- |
 | `fix`, `perf`, `security` | the next patch |
 | `feat`, `deprecate` | the next minor |
-| anything with `!` or a `BREAKING CHANGE:` footer | the next major, or the next minor under `0.y.z` |
+| anything with `!` or a `BREAKING CHANGE:` footer | the next minor |
 | only `docs`, `chore`, `refactor`, `test`, `build`, `ci`, `style` | nothing |
 
 The largest in the range wins, so one `feat` among forty fixes asks for a
 minor. Reaching further than asked is not a failure: a minor already claimed
 by an earlier unreleased change absorbs every patch that follows it.
+
+The minor is as far as this asks. Nothing here derives a major: a release
+increments it because somebody was asked and said so, and a commit subject
+cannot say whether a release is the one that renames the product. A release
+that does increment it passes, like any version reaching further than asked.
 
 ```
 Version not bumped

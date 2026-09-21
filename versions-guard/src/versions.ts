@@ -1,14 +1,7 @@
 import { type Change, changesIn, newestReachableTag, requiredIncrement } from '../../lib/src/changes';
 import type { ProjectGroup } from '../../lib/src/config';
 import { type Git, spawnGit } from '../../lib/src/git';
-import {
-  type Project,
-  UsageError,
-  readInside,
-  rootOf,
-  scan,
-  within,
-} from '../../lib/src/scan';
+import { type Project, UsageError, readInside, rootOf, scan, within } from '../../lib/src/scan';
 import type { GuardOptions } from '../../lib/src/settings';
 import { type Part, type Semver, compare, format, increment, parse } from '../../lib/src/semver';
 import { versionFrom } from '../../lib/src/version';
@@ -42,7 +35,6 @@ export function guardVersions(options: GuardOptions): Result {
 
   const moved: string[] = [];
   const failures: Failure[] = scanned.map((failure) => ({ ...failure }));
-  const single = options.projects.length === 1;
   // A repository that excepts bump-from-type has not agreed that a type says
   // how far to move, so there is nothing to read the types for.
   const fromType = !(options.except ?? []).includes('bump-from-type');
@@ -74,7 +66,7 @@ export function guardVersions(options: GuardOptions): Result {
       continue;
     }
 
-    const baseline = baselineOf(git, root, against, project, manifests, single);
+    const baseline = baselineOf(git, root, against, project, manifests);
     if (baseline === null) {
       moved.push(`${project.label} is new, at ${format(declared.version)}`);
       continue;
@@ -118,6 +110,11 @@ function reason(changes: readonly Change[], part: Part): string {
  * Where no such tag is reachable, whether because the repository tags nothing
  * or because it tags a published tree outside its own history, the baseline is
  * what the manifest said at the fork point.
+ *
+ * Only the repository itself has a tag to read. A tag is `v<version>` and
+ * carries no prefix, so a project under a subdirectory is not what one names
+ * however few of them there are, and its manifest at the fork point is the
+ * only thing that answers for it.
  */
 function baselineOf(
   git: Git,
@@ -125,12 +122,10 @@ function baselineOf(
   against: string,
   project: Project,
   manifests: readonly string[],
-  single: boolean,
 ): Semver | null {
-  const shape = single ? EXACT : `${nameOf(project)}/${EXACT}`;
-  const tag = newestReachableTag(git, root, shape);
-  if (tag !== null) {
-    const parsed = parse(tag.replace(`${nameOf(project)}/`, ''));
+  if (project.path === '') {
+    const tag = newestReachableTag(git, root, EXACT);
+    const parsed = tag === null ? null : parse(tag);
     if (parsed !== null) {
       return parsed;
     }
@@ -155,11 +150,6 @@ function baselineOf(
  * to whatever released last, so it is never what a release was.
  */
 const EXACT = 'v[0-9]*.[0-9]*.[0-9]*';
-
-/** The last segment of a project's path, which is also what a scope names. */
-function nameOf(project: Project): string {
-  return project.path === '' ? project.label : project.path.split('/').at(-1)!;
-}
 
 /** The version every manifest a project holds agrees on. */
 function agreedVersion(

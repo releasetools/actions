@@ -232,6 +232,20 @@ describe('both guards, against a real repository', () => {
     expect(moved.moved).toEqual([`${path.basename(root)} 1.3.5 -> 1.3.6`]);
   });
 
+  it('reads no tag for a project in a repository that holds several', () => {
+    // A tag is `v<version>` and carries no prefix, so here it names the
+    // repository. The plugin's baseline is its manifest at the fork point.
+    write('plugins/docket/skills/docket/SKILL.md', '# skill\n\nA second line.\n');
+    project('0.2.0', '# docket\n\n## 0.2.0 - 2026-01-02\n\nSomething.\n');
+    commit('feat(docket): something');
+    git('tag', 'v9.9.9');
+
+    const moved = versions();
+
+    expect(moved.failures).toEqual([]);
+    expect(moved.moved).toEqual(['plugins/docket 0.1.0 -> 0.2.0']);
+  });
+
   it('asks nothing where the repository excepts the convention', () => {
     write('plugins/docket/skills/docket/SKILL.md', '# skill\n\nA second line.\n');
     project('0.2.0', '# docket\n\n## 0.1.0\n\nThe first release.\n');

@@ -3,6 +3,21 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.8.0 - 2026-09-22
+
+### Changed
+
+`versions-guard` asks for a minor after a breaking change rather than a major,
+at every version, and never asks for a major at all. Nothing derives that: a
+release increments it because somebody was asked and said so. A release that
+does increment it still passes, like any version reaching further than asked.
+
+`versions-guard` reads a version tag only for the repository itself. A tag is
+`v<version>` and carries no prefix, so it names the repository rather than a
+project under a subdirectory, and such a project's baseline is its manifest at
+the fork point. A repository declaring one project in a subdirectory used to
+take the repository's own tag as that project's last release.
+
 ## 0.7.0 - 2026-09-21
 
 ### Added
