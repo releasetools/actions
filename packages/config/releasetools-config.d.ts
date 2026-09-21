@@ -14,6 +14,8 @@ export interface ProjectGroup {
 export interface Release {
   /** The branch a release is cut from. Absent means the default branch. */
   branch?: string;
+  /** How the pull request lands: squash, rebase or merge. Absent means squash. */
+  merge?: string;
   /** The workflow that must be green on the merged commit before a tag. */
   checks?: string;
   /** The workflow a tag starts. */

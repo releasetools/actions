@@ -3,6 +3,14 @@
 Newest first. Each version here is one npm published: `0.2.0` was written and
 never dispatched, so what it described shipped in `0.3.0`.
 
+## 0.4.0 - 2026-09-21
+
+### Added
+
+`release.merge` is read and checked like the keys beside it: `squash`,
+`rebase` or `merge`, saying how a release's pull request lands. It was an
+unknown key, so it reached nothing that reads this file.
+
 ## 0.3.0 - 2026-09-20
 
 ### Added
