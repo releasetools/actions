@@ -1,9 +1,10 @@
 name: 'Signed push'
 description: >-
-  Commit a directory tree to a branch on any repo. The action calls
-  GitHub's createCommitOnBranch mutation, which signs the commit
-  server-side using the token you pass in. No GPG key on the runner.
-  Can also apply one or more tags to the resulting commit.
+  Commit a directory tree to a branch on any repo, keeping each file's
+  executable bit. The action builds the commit through GitHub's Git
+  Database API, which signs it server-side for a GitHub App token or
+  GITHUB_TOKEN. No GPG key on the runner. Can also apply one or more
+  tags to the resulting commit.
 author: 'releasetools'
 branding:
   icon: 'upload-cloud'
