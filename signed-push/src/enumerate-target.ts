@@ -3,8 +3,10 @@ import type { GitHub } from '@actions/github/lib/utils';
 export interface TargetFile {
   /** Forward-slash path relative to repo root. */
   path: string;
-  /** Git blob SHA. Useful for SHA-based skip-unchanged checks; not used in v0.0.1. */
+  /** Git blob SHA. */
   sha: string;
+  /** Git file mode, such as 100644 or 100755. */
+  mode: string;
 }
 
 type Octokit = InstanceType<typeof GitHub>;
@@ -40,5 +42,6 @@ export async function enumerateTarget(
     .map((entry) => ({
       path: entry.path as string,
       sha: entry.sha as string,
+      mode: entry.mode as string,
     }));
 }

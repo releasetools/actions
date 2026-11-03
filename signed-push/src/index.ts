@@ -41,11 +41,13 @@ export async function run(): Promise<void> {
 
     const branchData = await octokit.rest.repos.getBranch({ owner, repo, branch: targetBranch });
     const expectedHeadOid = branchData.data.commit.sha;
+    const baseTreeSha = branchData.data.commit.commit.tree.sha;
     core.info(`Target HEAD ${owner}/${repo}@${targetBranch}: ${expectedHeadOid}`);
+
+    const targetFiles = await enumerateTarget(octokit, owner, repo, expectedHeadOid);
 
     let deletions: Array<{ path: string }> = [];
     if (prune) {
-      const targetFiles = await enumerateTarget(octokit, owner, repo, expectedHeadOid);
       const sourcePaths = new Set(additions.map((a) => a.path));
       deletions = targetFiles
         .filter((f) => !sourcePaths.has(f.path))
@@ -72,9 +74,11 @@ export async function run(): Promise<void> {
       repo,
       branch: targetBranch,
       expectedHeadOid,
+      baseTreeSha,
       headline,
       body,
       additions,
+      target: targetFiles,
       deletions,
     });
     const commitUrl = `https://github.com/${owner}/${repo}/commit/${commitOid}`;

@@ -3,6 +3,14 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.9.1 - 2026-11-03
+
+### Fixed
+
+`signed-push` keeps each file's executable bit: a source file with any execute
+bit is published as `100755`. It used to publish every file as `100644`, so a
+script the target branch runs by path failed with exit code 126.
+
 ## 0.9.0 - 2026-09-22
 
 ### Added
