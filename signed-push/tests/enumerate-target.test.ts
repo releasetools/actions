@@ -12,15 +12,15 @@ function fakeOctokit(getTreeImpl: () => Promise<unknown>): never {
 }
 
 describe('enumerateTarget', () => {
-  it('returns blob paths and SHAs, ignoring tree entries', async () => {
+  it('returns blob paths, SHAs and modes, ignoring tree entries', async () => {
     const octokit = fakeOctokit(async () => ({
       data: {
         truncated: false,
         tree: [
-          { path: 'README.md', type: 'blob', sha: 'aaa' },
-          { path: 'src', type: 'tree', sha: 'bbb' },
-          { path: 'src/index.ts', type: 'blob', sha: 'ccc' },
-          { path: 'package.json', type: 'blob', sha: 'ddd' },
+          { path: 'README.md', type: 'blob', sha: 'aaa', mode: '100644' },
+          { path: 'src', type: 'tree', sha: 'bbb', mode: '040000' },
+          { path: 'src/index.ts', type: 'blob', sha: 'ccc', mode: '100644' },
+          { path: 'run.sh', type: 'blob', sha: 'ddd', mode: '100755' },
         ],
       },
     }));
@@ -28,9 +28,9 @@ describe('enumerateTarget', () => {
     const out = await enumerateTarget(octokit, 'owner', 'repo', 'abc123');
 
     expect(out).toEqual([
-      { path: 'README.md', sha: 'aaa' },
-      { path: 'src/index.ts', sha: 'ccc' },
-      { path: 'package.json', sha: 'ddd' },
+      { path: 'README.md', sha: 'aaa', mode: '100644' },
+      { path: 'src/index.ts', sha: 'ccc', mode: '100644' },
+      { path: 'run.sh', sha: 'ddd', mode: '100755' },
     ]);
   });
 
@@ -49,7 +49,7 @@ describe('enumerateTarget', () => {
       data: {
         truncated: false,
         tree: [
-          { path: 'ok.md', type: 'blob', sha: 'aaa' },
+          { path: 'ok.md', type: 'blob', sha: 'aaa', mode: '100644' },
           { type: 'blob', sha: 'orphan' }, // no path
           { path: 'noshasum.md', type: 'blob' }, // no sha
         ],
@@ -58,6 +58,6 @@ describe('enumerateTarget', () => {
 
     const out = await enumerateTarget(octokit, 'owner', 'repo', 'abc');
 
-    expect(out).toEqual([{ path: 'ok.md', sha: 'aaa' }]);
+    expect(out).toEqual([{ path: 'ok.md', sha: 'aaa', mode: '100644' }]);
   });
 });

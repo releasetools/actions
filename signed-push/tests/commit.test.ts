@@ -1,57 +1,153 @@
 import { describe, expect, it, vi } from 'vitest';
-import { commit } from '../src/commit';
+import { commit, type CommitInput } from '../src/commit';
+import { blobSha } from '../src/enumerate-source';
 
-function fakeOctokit(graphqlImpl: (q: string, vars: unknown) => Promise<unknown>): never {
-  return { graphql: vi.fn(graphqlImpl) } as never;
+function fakeOctokit() {
+  const git = {
+    createBlob: vi.fn(async (_args: unknown) => ({ data: { sha: 'uploaded-blob' } })),
+    createTree: vi.fn(async (_args: unknown) => ({ data: { sha: 'new-tree' } })),
+    createCommit: vi.fn(async (_args: unknown) => ({ data: { sha: 'new-commit' } })),
+    updateRef: vi.fn(async (_args: unknown) => ({ data: {} })),
+  };
+  return { octokit: { rest: { git } } as never, git };
 }
 
+function file(path: string, text: string, mode: '100644' | '100755' = '100644') {
+  const buf = Buffer.from(text);
+  return { path, contents: buf.toString('base64'), mode, sha: blobSha(buf) };
+}
+
+function input(overrides: Partial<CommitInput>): CommitInput {
+  return {
+    owner: 'releasetools',
+    repo: 'cli',
+    branch: 'release/v0',
+    expectedHeadOid: 'parent-sha',
+    baseTreeSha: 'base-tree',
+    headline: 'release: v0.4.4',
+    body: 'Source-Commit: <x>',
+    additions: [],
+    target: [],
+    deletions: [],
+    ...overrides,
+  };
+}
+
+describe('blobSha', () => {
+  it('matches git hash-object', () => {
+    expect(blobSha(Buffer.from('alpha\n'))).toBe('4a58007052a65fbc2fc3f910f2855f45a4058e74');
+  });
+});
+
 describe('commit', () => {
-  it('sends a well-formed createCommitOnBranch input and returns the oid', async () => {
-    let captured: unknown;
-    const octokit = fakeOctokit(async (_q, vars) => {
-      captured = vars;
-      return { createCommitOnBranch: { commit: { oid: 'new-sha', url: 'https://x' } } };
-    });
+  it('uploads a new file and keeps its executable mode', async () => {
+    const { octokit, git } = fakeOctokit();
+    const run = file('scripts/run.sh', '#!/bin/sh\n', '100755');
 
-    const oid = await commit(octokit, {
+    const sha = await commit(octokit, input({ additions: [run] }));
+
+    expect(sha).toBe('new-commit');
+    expect(git.createBlob).toHaveBeenCalledWith({
       owner: 'releasetools',
-      repo: 'actions',
-      branch: 'main',
-      expectedHeadOid: 'parent-sha',
-      headline: 'publish: v1.0.0',
-      body: 'Source-Commit: x/y@deadbeef',
-      additions: [{ path: 'a.txt', contents: 'YWxwaGE=' }],
-      deletions: [{ path: 'old.txt' }],
+      repo: 'cli',
+      content: run.contents,
+      encoding: 'base64',
     });
-
-    expect(oid).toBe('new-sha');
-    expect(captured).toEqual({
-      input: {
-        branch: { repositoryNameWithOwner: 'releasetools/actions', branchName: 'main' },
-        message: { headline: 'publish: v1.0.0', body: 'Source-Commit: x/y@deadbeef' },
-        expectedHeadOid: 'parent-sha',
-        fileChanges: {
-          additions: [{ path: 'a.txt', contents: 'YWxwaGE=' }],
-          deletions: [{ path: 'old.txt' }],
-        },
-      },
+    expect(git.createTree).toHaveBeenCalledWith({
+      owner: 'releasetools',
+      repo: 'cli',
+      base_tree: 'base-tree',
+      tree: [{ path: 'scripts/run.sh', mode: '100755', type: 'blob', sha: 'uploaded-blob' }],
     });
   });
 
-  it('throws when the response is missing a commit oid', async () => {
-    const octokit = fakeOctokit(async () => ({ createCommitOnBranch: null }));
+  it('leaves files the branch already holds out of the tree and uploads nothing', async () => {
+    const { octokit, git } = fakeOctokit();
+    const same = file('README.md', 'same');
 
-    await expect(
-      commit(octokit, {
-        owner: 'a',
-        repo: 'b',
-        branch: 'main',
-        expectedHeadOid: 'x',
-        headline: 'h',
-        body: '',
-        additions: [],
-        deletions: [],
+    await commit(
+      octokit,
+      input({ additions: [same], target: [{ path: 'README.md', sha: same.sha, mode: '100644' }] }),
+    );
+
+    expect(git.createBlob).not.toHaveBeenCalled();
+    expect(git.createTree).not.toHaveBeenCalled();
+    expect(git.createCommit).toHaveBeenCalledWith(
+      expect.objectContaining({ tree: 'base-tree', parents: ['parent-sha'] }),
+    );
+  });
+
+  it('changes only the mode when the contents match', async () => {
+    const { octokit, git } = fakeOctokit();
+    const run = file('run.sh', 'echo hi\n', '100755');
+
+    await commit(
+      octokit,
+      input({ additions: [run], target: [{ path: 'run.sh', sha: run.sha, mode: '100644' }] }),
+    );
+
+    expect(git.createBlob).not.toHaveBeenCalled();
+    expect(git.createTree).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tree: [{ path: 'run.sh', mode: '100755', type: 'blob', sha: run.sha }],
       }),
-    ).rejects.toThrow(/no commit oid/);
+    );
+  });
+
+  it('deletes with a null sha', async () => {
+    const { octokit, git } = fakeOctokit();
+
+    await commit(octokit, input({ deletions: [{ path: 'old.txt' }] }));
+
+    expect(git.createTree).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tree: [{ path: 'old.txt', mode: '100644', type: 'blob', sha: null }],
+      }),
+    );
+  });
+
+  it('names no author, committer or signature, so GitHub signs the commit', async () => {
+    const { octokit, git } = fakeOctokit();
+
+    await commit(octokit, input({ additions: [file('a.txt', 'a')] }));
+
+    expect(git.createCommit).toHaveBeenCalledWith({
+      owner: 'releasetools',
+      repo: 'cli',
+      message: 'release: v0.4.4\n\nSource-Commit: <x>',
+      tree: 'new-tree',
+      parents: ['parent-sha'],
+    });
+  });
+
+  it('uses the headline alone when there is no body', async () => {
+    const { octokit, git } = fakeOctokit();
+
+    await commit(octokit, input({ body: '' }));
+
+    expect(git.createCommit).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'release: v0.4.4' }),
+    );
+  });
+
+  it('moves the branch only by fast-forward', async () => {
+    const { octokit, git } = fakeOctokit();
+
+    await commit(octokit, input({}));
+
+    expect(git.updateRef).toHaveBeenCalledWith({
+      owner: 'releasetools',
+      repo: 'cli',
+      ref: 'heads/release/v0',
+      sha: 'new-commit',
+      force: false,
+    });
+  });
+
+  it('fails when the branch moved and the ref update is refused', async () => {
+    const { octokit, git } = fakeOctokit();
+    git.updateRef.mockRejectedValueOnce(new Error('Update is not a fast forward'));
+
+    await expect(commit(octokit, input({}))).rejects.toThrow(/not a fast forward/);
   });
 });

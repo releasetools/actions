@@ -39,6 +39,8 @@ After the step completes:
 
 - The target branch tree matches `./dist`.
 - The new commit is signed by the identity behind the token.
+- Each file keeps its executable bit: `100755` where the source file has one,
+  `100644` otherwise.
 - `v1.2.3` and `v1` point at that commit; existing tags move because
   `force-tags` is enabled.
 - `commit-sha` and `commit-url` are available as step outputs.
@@ -90,7 +92,9 @@ files:
 
 The directory is walked recursively and paths are published relative to its
 root. Only regular files are included. The `.git` directory is always skipped;
-symlinks, sockets, devices, and other special entries are ignored.
+symlinks, sockets, devices, and other special entries are ignored. A file with
+any execute bit set is published as `100755`, so a script the target runs by
+path stays runnable.
 
 The directory must exist. An empty directory is valid, but with `prune: true`
 it means "delete every file from the target branch."
@@ -160,9 +164,10 @@ Reference an output through the step ID, for example
 The token needs `contents: write` on `target-repo`. For a different target
 repository, scope the GitHub App installation token to that repository.
 
-GitHub's `createCommitOnBranch` GraphQL mutation creates the commit server-side.
-With a GitHub App token, GitHub signs it and the UI shows it as Verified. A PAT
-or bot token can write the same commit, but it may not carry a verified
+The commit is built through GitHub's Git Database API: blobs, a tree, a commit
+and a ref update. The request names no author, committer or signature, so with
+a GitHub App token or `GITHUB_TOKEN` GitHub signs the commit and the UI shows it
+as Verified. A PAT can write the same commit, but it will not carry a verified
 signature.
 
 No private signing key is installed on or exposed to the runner.
@@ -171,20 +176,28 @@ No private signing key is installed on or exposed to the runner.
 
 The action:
 
-1. Reads and base64-encodes the regular files under `source-dir`.
-2. Reads the current target branch HEAD.
+1. Reads the regular files under `source-dir`, with each file's mode and git
+   blob SHA.
+2. Reads the current target branch HEAD and its tree.
 3. Computes deletions when `prune` is enabled.
-4. Creates the commit with that HEAD as `expectedHeadOid`.
-5. Applies requested tags to the resulting commit.
+4. Uploads a blob for each file whose contents the branch does not already
+   hold, and builds a tree on top of the branch's tree from the files whose
+   contents or mode changed.
+5. Creates a commit whose parent is that HEAD, and moves the branch to it by
+   fast-forward only.
+6. Applies requested tags to the resulting commit.
 
-If another writer moves the branch after step 2, GitHub rejects the commit
-instead of allowing this action to overwrite the newer branch state.
+If another writer moves the branch after step 2, the fast-forward is refused
+and the action fails instead of overwriting the newer branch state.
+
+Unchanged files are neither uploaded nor rewritten, which keeps a large tree
+under GitHub's limit on content-creating requests.
 
 If the source contains no files and pruning finds nothing to delete, no commit
 is created. Outputs refer to the existing branch HEAD, and requested tags are
 still applied to that HEAD. Files whose contents already match the target do
-not trigger this explicit no-op path; GitHub can still create a commit with an
-unchanged tree.
+not trigger this explicit no-op path: the action still creates a commit, with
+an unchanged tree.
 
 Tag operations happen after the branch commit. A tag failure therefore fails
 the action but does not roll back the commit or any earlier tag operation.

@@ -22,8 +22,32 @@ describe('enumerateSource', () => {
     const out = await enumerateSource(work);
 
     expect(out).toEqual([
-      { path: 'a.txt', contents: Buffer.from('alpha\n').toString('base64') },
-      { path: 'b.txt', contents: Buffer.from('beta\n').toString('base64') },
+      {
+        path: 'a.txt',
+        contents: Buffer.from('alpha\n').toString('base64'),
+        mode: '100644',
+        sha: '4a58007052a65fbc2fc3f910f2855f45a4058e74',
+      },
+      {
+        path: 'b.txt',
+        contents: Buffer.from('beta\n').toString('base64'),
+        mode: '100644',
+        sha: '65b2df87f7df3aeedef04be96703e55ac19c2cfb',
+      },
+    ]);
+  });
+
+  it('marks a file with an execute bit as 100755', async () => {
+    await fs.writeFile(path.join(work, 'run.sh'), '#!/bin/sh\n');
+    await fs.chmod(path.join(work, 'run.sh'), 0o755);
+    await fs.writeFile(path.join(work, 'notes.md'), 'notes');
+    await fs.chmod(path.join(work, 'notes.md'), 0o644);
+
+    const out = await enumerateSource(work);
+
+    expect(out.map((e) => [e.path, e.mode])).toEqual([
+      ['notes.md', '100644'],
+      ['run.sh', '100755'],
     ]);
   });
 

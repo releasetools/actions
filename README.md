@@ -34,11 +34,11 @@ you provide, and attach one or more lightweight tags to the resulting commit.
     token: ${{ steps.app-token.outputs.token }}
 ```
 
-The action uses GitHub's `createCommitOnBranch` GraphQL mutation, so a GitHub
-App token produces a Verified commit without placing a private signing key on
-the runner. It also handles base64 file contents, race protection, pruning, and
-tag creation—the repetitive plumbing that otherwise ends up in every release
-workflow.
+The action builds the commit through GitHub's Git Database API, so a GitHub App
+token or `GITHUB_TOKEN` produces a Verified commit without placing a private
+signing key on the runner, and executable files keep their mode. It also
+handles race protection, pruning, and tag creation: the plumbing that otherwise
+ends up in every release workflow.
 
 See the [`signed-push` guide](signed-push/) for mirroring, upserts, inputs,
 outputs, permissions, and behavior.
