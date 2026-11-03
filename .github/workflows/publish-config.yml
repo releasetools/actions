@@ -1,4 +1,5 @@
 name: Publish @releasetools/config
+run-name: Publish @releasetools/config ${{ inputs.version }}
 
 # The reader for .releasetools.yaml, which the guards here and the
 # release-notes plugin both use. The plugin carries the file rather than
