@@ -3,6 +3,10 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.9.2 - 2026-11-03
+
+No changes to the published actions since 0.9.1.
+
 ## 0.9.1 - 2026-11-03
 
 ### Fixed
