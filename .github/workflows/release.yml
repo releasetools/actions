@@ -1,4 +1,5 @@
 name: Release
+run-name: Release ${{ inputs.version }}
 
 # Dispatch with a version like v0.0.2. The workflow builds each action's
 # dist bundle, dogfoods signed-push to commit the clean published tree
