@@ -3,6 +3,16 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.10.0 - 2026-11-04
+
+### Added
+
+`@releasetools/config` reads `release.trigger`, which says what starts a
+release's publish workflow: `tag`, `dispatch`, or a list of both, in the order
+a release tool tries them. It refuses any other name, a name given twice, and
+`dispatch` with no `publish` workflow to dispatch. `adopt` writes it commented,
+beside `publish`.
+
 ## 0.9.2 - 2026-11-03
 
 No changes to the published actions since 0.9.1.

@@ -240,7 +240,7 @@ function settingsFrom(text, where = CONFIG_FILE) {
 
 const KEYS = ['path', 'manifest', 'changelog', 'bump'];
 
-/** What the format says a release is cut from, lands as, checked against, and started by. */
+/** The release keys that each name one thing. `trigger` takes a list as well, so it is read on its own. */
 const RELEASE_KEYS = ['branch', 'merge', 'checks', 'publish', 'registry'];
 
 /**
@@ -269,7 +269,48 @@ function releaseFrom(value, where) {
     }
     declared[key] = found.trim();
   }
+
+  const trigger = triggerFrom(value['trigger'], `${where} trigger`);
+  if (trigger !== null) {
+    if (trigger.includes('dispatch') && declared.publish === undefined) {
+      throw new ConfigError(
+        `${where} trigger includes dispatch, so ${where} publish must name the workflow it dispatches`,
+      );
+    }
+    declared.trigger = trigger;
+  }
   return declared;
+}
+
+/** What can start a release's publish workflow. */
+const TRIGGERS = ['tag', 'dispatch'];
+
+/**
+ * What starts publication, as a list in the order a release tool tries it.
+ *
+ * One name or a list of them. Null where the file says nothing, which the
+ * format reads as `tag`; the reader leaves that to its caller rather than
+ * writing a default the file never declared.
+ */
+function triggerFrom(value, where) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  const names = Array.isArray(value) ? value : [value];
+  if (names.length === 0) {
+    throw new ConfigError(`${where} must be tag, dispatch, or a list of both, or left out`);
+  }
+  const seen = [];
+  for (const name of names) {
+    if (typeof name !== 'string' || !TRIGGERS.includes(name.trim())) {
+      throw new ConfigError(`${where} must be tag, dispatch, or a list of both, got ${JSON.stringify(name)}`);
+    }
+    if (seen.includes(name.trim())) {
+      throw new ConfigError(`${where} names ${name.trim()} twice`);
+    }
+    seen.push(name.trim());
+  }
+  return seen;
 }
 
 /** The groups of projects a repository holds. */

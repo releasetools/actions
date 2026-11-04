@@ -253,12 +253,13 @@ describe('the published config CLI', () => {
     ]);
     expect(declared(root).release).toEqual({ branch: 'main', merge: 'squash' });
 
-    // The three that name something here are a person's to fill in, and the
+    // The ones that name something here are a person's to fill in, and the
     // workflows found are listed so they can be.
     const text = fs.readFileSync(path.join(root, '.releasetools.yaml'), 'utf8');
     expect(text).toContain('# The workflows here: publish.yml, tests.yml');
     expect(text).toContain('# checks:');
     expect(text).toContain('# publish:');
+    expect(text).toContain('# trigger:');
     expect(text).toContain('# registry:');
   });
 

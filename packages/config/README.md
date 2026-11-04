@@ -40,7 +40,7 @@ ships. An existing `.releasetools.yaml` is preserved. Review the file before
 committing it; a workspace needs each project named explicitly.
 
 It also writes a `release:` block, which is what cuts a release reads. Only
-`branch` and `merge` are filled in, at their defaults. The three that name
+`branch` and `merge` are filled in, at their defaults. The ones that name
 something in your repository are left commented, with the workflow filenames
 found here listed beside them: guessing which one publishes is worse than a
 line somebody fills in.
@@ -50,8 +50,10 @@ release:
   branch: main
   merge: squash
   # The workflows here: publish.yml, tests.yml
-  # checks: the one that must be green on the commit a tag will name
-  # publish: the one a tag starts
+  # checks: the one that must be green on the release commit
+  # publish: the one that publishes a release
+  # trigger: what starts publish, tag (the default) or dispatch,
+  #          or [dispatch, tag] where a dispatch tags the release commit
   # registry: a URL answering 404 for a version nobody has released,
   #           with {version} where the version goes
 ```
