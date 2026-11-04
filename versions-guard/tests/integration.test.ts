@@ -214,6 +214,56 @@ describe('both guards, against a real repository', () => {
     expect(moved.moved).toEqual([`${path.basename(root)} 1.3.5 -> 1.3.6`]);
   });
 
+  it('judges against a tag on a built tree through its Source-Commit trailer', () => {
+    // mutex's shape: an old tag still on main, every later release tagged on
+    // a built commit that main never contains.
+    const single = [{ path: ['./'], manifest: ['package.json'] }];
+    write('package.json', `${JSON.stringify({ version: '1.1.0' })}\n`);
+    commit('feat: the last release tagged on main');
+    git('tag', 'v1.1.0');
+
+    write('package.json', `${JSON.stringify({ version: '1.5.1' })}\n`);
+    const released = commit('chore(release): 1.5.1');
+    git('checkout', '-q', '--orphan', 'release/v1');
+    git('rm', '-rq', '--cached', '.');
+    write('dist.js', 'built\n');
+    git('add', 'dist.js');
+    git('commit', '-q', '-m', `release: v1.5.1\n\nSource-Commit: <https://github.com/o/r/commit/${released}>`);
+    git('tag', 'v1.5.1');
+    git('checkout', '-q', '-f', 'main');
+
+    write('src/thing.ts', 'export const one = 1;\n');
+    commit('fix: a change that forgot to bump');
+
+    const judged = guardVersions({ root, base: released, projects: single });
+
+    // Against v1.1.0, which is all `git describe` reaches, 1.5.1 would pass.
+    const said = judged.failures.map((failure) => failure.message).join('\n');
+    expect(said).toMatch(/at least 1\.5\.2 after 1\.5\.1/);
+  });
+
+  it('reads Workflow-Commit from a tag published before Source-Commit', () => {
+    const single = [{ path: ['./'], manifest: ['package.json'] }];
+    write('package.json', `${JSON.stringify({ version: '0.9.2' })}\n`);
+    const released = commit('chore(release): 0.9.2');
+    git('checkout', '-q', '--orphan', 'release/v0');
+    git('rm', '-rq', '--cached', '.');
+    write('dist.js', 'built\n');
+    git('add', 'dist.js');
+    git('commit', '-q', '-m', `release: v0.9.2\n\n---\n\nWorkflow-Commit: <https://github.com/o/r/commit/${released}>`);
+    git('tag', 'v0.9.2');
+    git('checkout', '-q', '-f', 'main');
+
+    write('src/thing.ts', 'export const one = 1;\n');
+    write('package.json', `${JSON.stringify({ version: '0.9.3' })}\n`);
+    commit('fix: the next change');
+
+    const moved = guardVersions({ root, base: released, projects: single });
+
+    expect(moved.failures).toEqual([]);
+    expect(moved.moved).toEqual([`${path.basename(root)} 0.9.2 -> 0.9.3`]);
+  });
+
   it('never takes a floating major tag as a baseline', () => {
     const single = [{ path: ['./'], manifest: ['package.json'] }];
     write('package.json', `${JSON.stringify({ version: '1.3.5' })}\n`);
