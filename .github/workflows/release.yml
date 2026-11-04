@@ -1,11 +1,13 @@
 name: Release
-run-name: Release ${{ inputs.version }}
+run-name: Release v${{ inputs.version }}
 
-# Dispatch with a version like v0.0.2. The workflow builds each action's
-# dist bundle, dogfoods signed-push to commit the clean published tree
-# to refs/heads/release/<major> (server-signed by the GITHUB_TOKEN's
-# bot identity), then force-moves the exact-version tag and the
-# floating major tag to point at the new commit.
+# Dispatch with a version like 0.0.2 and the release commit, as
+# .releasetools.yaml declares with `trigger: dispatch`. The workflow builds
+# each action's dist bundle, dogfoods signed-push to commit the clean
+# published tree to refs/heads/release/<major> (server-signed by the
+# GITHUB_TOKEN's bot identity) with a Source-Commit trailer naming the
+# release commit, then creates the exact-version tag and moves the floating
+# major tag onto the new commit.
 #
 # Consumers reference releasetools/actions/<action>@v<major> and get
 # a tree with no source, no node_modules, no tests, no CI. Source
@@ -15,8 +17,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (e.g. v0.0.2). Must look like vMAJOR.MINOR.PATCH.'
+        description: 'Version to publish, with no v (e.g. 0.0.2). The tag is v<version>.'
         required: true
+      commit:
+        description: 'The release commit: its full SHA, or HEAD for whatever the dispatched ref names when the run starts.'
+        required: false
+        default: HEAD
 
 permissions:
   contents: write
@@ -29,8 +35,20 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::version must look like v0.0.2 (got: $VERSION)"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version must look like 0.0.2, with no v (got: $VERSION)"
+            exit 1
+          fi
+
+      # The run builds whatever its ref named when it started. A release tool
+      # passes the commit it verified, and a branch that moved past it since
+      # would otherwise publish commits nobody released.
+      - name: Refuse a commit other than the release commit
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          if [[ "$COMMIT" != "HEAD" && "$COMMIT" != "$GITHUB_SHA" ]]; then
+            echo "::error::asked to publish ${COMMIT}, but ${GITHUB_REF_NAME} is at ${GITHUB_SHA}. Dispatch on a ref that names the release commit."
             exit 1
           fi
 
@@ -45,7 +63,7 @@ jobs:
       - name: Refuse a version that already exists
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
+          VERSION: v${{ inputs.version }}
         run: |
           set -euo pipefail
           if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${VERSION}" >/dev/null 2>&1; then
@@ -58,7 +76,7 @@ jobs:
       # for.
       - name: Refuse a version the manifest does not declare
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: v${{ inputs.version }}
         run: |
           set -euo pipefail
           declared="v$(node -p "require('./package.json').version")"
@@ -86,12 +104,12 @@ jobs:
         id: section
         uses: ./extract-release-notes
         with:
-          version: ${{ inputs.version }}
+          version: v${{ inputs.version }}
 
       - name: Refuse a version nothing describes
         if: steps.section.outputs.found != 'true'
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: v${{ inputs.version }}
         run: |
           echo "::error::Write CHANGELOG.md's ${VERSION#v} section, then release."
           exit 1
@@ -99,14 +117,14 @@ jobs:
       - name: Compute major version
         id: major
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: v${{ inputs.version }}
         run: |
           echo "value=$(printf '%s' "$VERSION" | cut -d. -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Build release references
         id: references
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: v${{ inputs.version }}
         shell: bash
         run: |
           set -euo pipefail
@@ -142,7 +160,7 @@ jobs:
 
       - name: Stage clean publish tree
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: v${{ inputs.version }}
         run: |
           set -euo pipefail
           mkdir -p stage
@@ -188,12 +206,13 @@ jobs:
           source-dir: stage
           target-repo: ${{ github.repository }}
           target-branch: release/${{ steps.major.outputs.value }}
-          headline: "release: ${{ inputs.version }}"
+          headline: "release: v${{ inputs.version }}"
           body: |
             ${{ steps.references.outputs.reference_label }}: <${{ steps.references.outputs.reference_url }}>
+            Source-Commit: <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}>
           prune: 'true'
           tags: |
-            ${{ inputs.version }}
+            v${{ inputs.version }}
             ${{ steps.major.outputs.value }}
           force-tags: 'true'
           token: ${{ github.token }}
@@ -203,7 +222,7 @@ jobs:
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
+          VERSION: v${{ inputs.version }}
           NOTES: ${{ steps.section.outputs.notes }}
         run: |
           set -euo pipefail
@@ -218,7 +237,7 @@ jobs:
 
       - name: Workflow summary
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: v${{ inputs.version }}
           NEW_SHA: ${{ steps.publish.outputs.commit-sha }}
           NEW_URL: ${{ steps.publish.outputs.commit-url }}
           MAJOR: ${{ steps.major.outputs.value }}

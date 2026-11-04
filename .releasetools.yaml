@@ -10,3 +10,7 @@ projects:
     manifest: package.json
     changelog: CHANGELOG.md
     bump: npm version {version} --no-git-tag-version
+release:
+  checks: ci.yml
+  publish: release.yml
+  trigger: dispatch
