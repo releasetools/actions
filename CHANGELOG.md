@@ -3,6 +3,15 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.11.0 - 2026-11-04
+
+### Added
+
+`trigger-guard` fails a pull request when the publish workflow
+`.releasetools.yaml` names does not accept what `release.trigger` declares: a
+pushed tag needs `on.push.tags`, and a dispatch needs the `version` and
+`commit` inputs, with `commit` defaulting to `HEAD`.
+
 ## 0.10.0 - 2026-11-04
 
 ### Added
