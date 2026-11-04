@@ -1,5 +1,5 @@
 name: Publish @releasetools/config
-run-name: Publish @releasetools/config ${{ inputs.version }}
+run-name: Publish @releasetools/config v${{ inputs.version }}
 
 # The reader for .releasetools.yaml, which the guards here and the
 # release-notes plugin both use. The plugin carries the file rather than
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (e.g. 0.1.0). Must match packages/config/package.json.'
+        description: 'Version to publish, with no v (e.g. 0.1.0). Must match packages/config/package.json.'
         required: true
 
 permissions:
