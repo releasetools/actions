@@ -13,6 +13,15 @@ a release tool tries them. It refuses any other name, a name given twice, and
 `dispatch` with no `publish` workflow to dispatch. `adopt` writes it commented,
 beside `publish`.
 
+### Fixed
+
+`versions-guard` judges against the newest version tag whose release commit the
+pull request contains. In a repository that tags a built tree, such as a GitHub
+Action published to `release/v1`, a checkout holding the tags used to reach
+back past every such release to the last tag left on `main`, and passed
+versions far behind the newest. A tag on a built commit now counts through the
+commit its `Source-Commit` or `Workflow-Commit` trailer names.
+
 ## 0.9.2 - 2026-11-03
 
 No changes to the published actions since 0.9.1.

@@ -1,4 +1,4 @@
-import { type Change, changesIn, newestReachableTag, requiredIncrement } from '../../lib/src/changes';
+import { type Change, changesIn, newestReleaseTag, requiredIncrement } from '../../lib/src/changes';
 import type { ProjectGroup } from '../../lib/src/config';
 import { type Git, spawnGit } from '../../lib/src/git';
 import { type Project, UsageError, readInside, rootOf, scan, within } from '../../lib/src/scan';
@@ -104,12 +104,13 @@ function reason(changes: readonly Change[], part: Part): string {
 /**
  * What this project last released.
  *
- * A tag first, and the newest one reachable from here rather than the newest
- * by date: a backport released yesterday on another line is not an ancestor
- * of this commit, and taking it as the baseline would ask the wrong question.
- * Where no such tag is reachable, whether because the repository tags nothing
- * or because it tags a published tree outside its own history, the baseline is
- * what the manifest said at the fork point.
+ * A tag first: the newest whose release commit this commit contains, rather
+ * than the newest by date. A backport released yesterday on another line leads
+ * back to a commit this one does not descend from, and taking it as the
+ * baseline would ask the wrong question. A tag on a published tree counts
+ * through the commit its Source-Commit trailer names. Where no tag leads back
+ * here, because the repository tags nothing or the checkout fetched no tags,
+ * the baseline is what the manifest said at the fork point.
  *
  * Only the repository itself has a tag to read. A tag is `v<version>` and
  * carries no prefix, so a project under a subdirectory is not what one names
@@ -124,7 +125,7 @@ function baselineOf(
   manifests: readonly string[],
 ): Semver | null {
   if (project.path === '') {
-    const tag = newestReachableTag(git, root, EXACT);
+    const tag = newestReleaseTag(git, root, EXACT);
     const parsed = tag === null ? null : parse(tag);
     if (parsed !== null) {
       return parsed;

@@ -30,10 +30,9 @@ function fakeGit(situation: {
     if (args[0] === 'ls-files') {
       return ok('');
     }
-    if (args[0] === 'describe') {
-      return situation.tag === undefined
-        ? { status: 128, stdout: '', stderr: 'no tag' }
-        : ok(`${situation.tag}\n`);
+    if (args[0] === 'tag') {
+      // Every tag counts as reachable here, since merge-base answers 0.
+      return ok(situation.tag === undefined ? '' : `${situation.tag}\n`);
     }
     if (args[0] === 'log') {
       const records = subjects.map((subject) => `\x1e0000000\x1f${subject}\x1f`);
