@@ -142,6 +142,23 @@ itself whether a release nothing describes should stop.
 
 See the [`extract-release-notes` guide](extract-release-notes/).
 
+### `publish-tree`
+
+Publishes a release started by dispatch: it refuses a version, commit, tag or
+changelog that does not match what the repository declares, commits the built
+tree to `release/v<major>` with a `Source-Commit` trailer, tags it, and creates
+the GitHub release from the changelog section.
+
+```yaml
+- uses: releasetools/actions/publish-tree@v0
+  with:
+    version: ${{ inputs.version }}
+    commit: ${{ inputs.commit }}
+    source-dir: publish
+```
+
+See the [`publish-tree` guide](publish-tree/).
+
 More actions are planned for common cross-workflow release patterns.
 
 ## Development

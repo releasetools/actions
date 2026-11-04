@@ -1,0 +1,67 @@
+name: 'Publish tree'
+description: >-
+  Publish a dispatched release as a built tree: refuse a version, commit or
+  tag that does not match what the repository declares, commit the tree to
+  release/v<major> as a server-signed commit whose Source-Commit trailer names
+  the release commit, tag it, and create the GitHub release from the
+  changelog section.
+author: 'releasetools'
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  version:
+    description: 'The version being released, with no v. The tag is v<version>.'
+    required: true
+  commit:
+    description: 'The release commit: its full SHA, or HEAD for whatever the run checked out.'
+    required: false
+    default: 'HEAD'
+  source-dir:
+    description: 'The built tree to publish. Every file in it is committed, keeping its executable bit.'
+    required: true
+  target-branch:
+    description: 'The branch the tree is committed to. Defaults to release/v<major>.'
+    required: false
+    default: ''
+  major-tag:
+    description: 'Also move the floating v<major> tag onto the published commit.'
+    required: false
+    default: 'true'
+  release-name:
+    description: 'The GitHub release title. Defaults to v<version>.'
+    required: false
+    default: ''
+  empty-notes:
+    description: 'What the release says when its changelog section has no entries.'
+    required: false
+    default: 'No user-visible changes.'
+  replace:
+    description: 'Replace an existing v<version>. Refused unless .releasetools.yaml excepts immutable-tag.'
+    required: false
+    default: 'false'
+  dry-run:
+    description: 'Run every check and report, without committing, tagging or releasing.'
+    required: false
+    default: 'false'
+  token:
+    description: 'Token with contents:write. GITHUB_TOKEN signs the commit; it cannot write .github/workflows/.'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  tag:
+    description: 'The version tag, v<version>.'
+  major:
+    description: 'The floating major tag, v<major>.'
+  commit-sha:
+    description: 'The published commit on the target branch.'
+  commit-url:
+    description: 'The URL of the published commit.'
+  replaced:
+    description: 'The commit v<version> named before, when replace moved it. Empty otherwise.'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
