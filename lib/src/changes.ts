@@ -1,5 +1,6 @@
-import { type Git, lines } from './git';
-import { type Part, type Semver, compare, parse } from './semver';
+import type { Git } from './git';
+import { newestReleaseTag as previousRelease } from '../../packages/config/releasetools-config';
+import type { Part } from './semver';
 
 /**
  * Reading what a change says it is, from its subject.
@@ -117,61 +118,11 @@ export function breakingWithoutFooter(git: Git, root: string, sha: string): bool
 }
 
 /**
- * The newest tag matching a shape whose release commit the commit being judged
- * contains, which is FORMAT's "Judging a version" rule 1.
- *
- * A tag's release commit is the tagged commit where HEAD contains it. A
- * repository that publishes a built tree tags a commit HEAD never contains,
- * and that commit's Source-Commit trailer names the release commit, or its
- * Workflow-Commit trailer on a tag published before Source-Commit was asked
- * for. `git describe` sees neither, and answers with whatever older tag the
- * branch still holds. A tag leading back to neither is another line's release
- * and is passed over.
+ * The newest version tag whose release commit the commit being judged
+ * contains, FORMAT's "Judging a version" rule 1. The rule lives in
+ * @releasetools/config, which the release-notes plugin carries too, so the
+ * guard and the notes cannot disagree about where the last release was.
  */
-export function newestReleaseTag(git: Git, root: string, match: string): string | null {
-  const listed = git(root, ['tag', '--list', match]);
-  if (listed.status !== 0) {
-    return null;
-  }
-  const tags: Array<{ name: string; version: Semver }> = [];
-  for (const name of lines(listed.stdout)) {
-    const version = parse(name);
-    if (version !== null) {
-      tags.push({ name, version });
-    }
-  }
-  tags.sort((left, right) => compare(right.version, left.version));
-
-  for (const { name } of tags) {
-    if (contains(git, root, name)) {
-      return name;
-    }
-    const source = builtFrom(git, root, name);
-    if (source !== null && contains(git, root, source)) {
-      return name;
-    }
-  }
-  return null;
-}
-
-/** Trailers naming the commit a published tree was built from, preferred first. */
-const SOURCE_TRAILERS = ['Source-Commit', 'Workflow-Commit'];
-
-/** The commit a tag's built tree came from, by its trailer, or null where it names none. */
-function builtFrom(git: Git, root: string, tag: string): string | null {
-  const body = git(root, ['log', '-1', '--format=%B', tag]);
-  if (body.status !== 0) {
-    return null;
-  }
-  for (const name of SOURCE_TRAILERS) {
-    const found = new RegExp(`^${name}:\\s*<?\\S*?([0-9a-f]{40})>?\\s*$`, 'm').exec(body.stdout);
-    if (found) {
-      return found[1]!;
-    }
-  }
-  return null;
-}
-
-function contains(git: Git, root: string, commit: string): boolean {
-  return git(root, ['merge-base', '--is-ancestor', commit, 'HEAD']).status === 0;
+export function newestReleaseTag(git: Git, root: string): string | null {
+  return previousRelease((args) => git(root, args))?.tag ?? null;
 }
