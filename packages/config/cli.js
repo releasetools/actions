@@ -121,7 +121,7 @@ function repositoryRoot(dir) {
  *
  * Only `branch` and `merge` have defaults worth writing down, and they are
  * written as themselves rather than left out, because the next reader is
- * deciding whether to change them. The three that name something in this
+ * deciding whether to change them. The ones that name something in this
  * repository are commented, with the workflows found here listed beside them:
  * a guess at which one publishes is worse than a line somebody has to fill in.
  */
@@ -144,8 +144,10 @@ function releaseBlock(root) {
     '  branch: main',
     '  merge: squash',
     `  # The workflows here: ${found}`,
-    '  # checks: the one that must be green on the commit a tag will name',
-    '  # publish: the one a tag starts',
+    '  # checks: the one that must be green on the release commit',
+    '  # publish: the one that publishes a release',
+    '  # trigger: what starts publish, tag (the default) or dispatch,',
+    '  #          or [dispatch, tag] where a dispatch tags the release commit',
     '  # registry: a URL answering 404 for a version nobody has released,',
     '  #           with {version} where the version goes',
   ];

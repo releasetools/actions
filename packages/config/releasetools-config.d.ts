@@ -10,16 +10,21 @@ export interface ProjectGroup {
   bump?: string;
 }
 
+/** What starts a release's publish workflow: pushing the tag, or dispatching the workflow. */
+export type Trigger = 'tag' | 'dispatch';
+
 /** How a release is cut, where the repository says. */
 export interface Release {
   /** The branch a release is cut from. Absent means the default branch. */
   branch?: string;
   /** How the pull request lands: squash, rebase or merge. Absent means squash. */
   merge?: string;
-  /** The workflow that must be green on the merged commit before a tag. */
+  /** The workflow that must be green on the release commit before the release is published. */
   checks?: string;
-  /** The workflow a tag starts. */
+  /** The workflow that publishes a release. Required where `trigger` includes dispatch. */
   publish?: string;
+  /** What starts `publish`, in the order a release tool tries it. Absent means tag. */
+  trigger?: Trigger[];
   /** A URL that answers 404 for a version not yet released. */
   registry?: string;
 }

@@ -3,6 +3,17 @@
 Newest first. Each version here is one npm published: `0.2.0` was written and
 never dispatched, so what it described shipped in `0.3.0`.
 
+## 0.6.0 - 2026-11-04
+
+### Added
+
+`release.trigger` is read and checked: `tag`, `dispatch`, or a list of both,
+returned as a list in the order written. Any other name, a name given twice,
+and `dispatch` with no `publish` workflow are refused. `adopt` writes it
+commented, and its comments for `checks` and `publish` now speak of the
+release commit rather than of a tag, since under `dispatch` the workflow
+creates the tag.
+
 ## 0.5.0 - 2026-09-22
 
 ### Added
