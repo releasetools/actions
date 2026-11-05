@@ -47,3 +47,6 @@ jobs:
 
       - uses: ./changelog-guard
         if: github.event_name == 'pull_request'
+
+      - uses: ./trigger-guard
+        if: github.event_name == 'pull_request'

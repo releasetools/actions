@@ -3,6 +3,17 @@
 Newest first. Each version here is one npm published: `0.2.0` was written and
 never dispatched, so what it described shipped in `0.3.0`.
 
+## 0.7.0 - 2026-11-04
+
+### Added
+
+`newestReleaseTag(git, head)` returns the previous release as FORMAT's
+"Judging a version" rule 1 defines it: the newest version tag whose release
+commit `head` contains, with the newer tags it passed over. `releaseCommitOf`
+answers for one tag, and `sourceCommitIn` reads the `Source-Commit` trailer
+(or `Workflow-Commit`, on older tags) from a commit message. `git` is a
+function the caller passes in, so the reader still spawns nothing itself.
+
 ## 0.6.0 - 2026-11-04
 
 ### Added

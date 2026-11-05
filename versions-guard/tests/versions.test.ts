@@ -30,7 +30,7 @@ function fakeGit(situation: {
     if (args[0] === 'ls-files') {
       return ok('');
     }
-    if (args[0] === 'tag') {
+    if (args.includes('tag') && args.includes('--list')) {
       // Every tag counts as reachable here, since merge-base answers 0.
       return ok(situation.tag === undefined ? '' : `${situation.tag}\n`);
     }

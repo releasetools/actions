@@ -118,6 +118,25 @@ the version and nothing else; a project holding none of the files it names
 passes the version guard. Files that are not committed yet count as well as the
 diff.
 
+### `trigger-guard`
+
+Fail a pull request when the publish workflow `.releasetools.yaml` names does
+not accept what `release.trigger` declares. Under `tag` the workflow has to
+start on `on.push.tags`; under `dispatch` it has to take the `version` and
+`commit` inputs, with `commit` defaulting to `HEAD`.
+
+```yaml
+- uses: actions/checkout@v6
+
+- uses: releasetools/actions/trigger-guard@v0
+  if: github.event_name == 'pull_request'
+```
+
+A repository with no `publish` workflow under `tag` has nothing to check, and
+the guard passes saying so.
+
+See the [`trigger-guard` guide](trigger-guard/).
+
 ### `extract-release-notes`
 
 Hand one version's changelog section to whatever publishes the release. It

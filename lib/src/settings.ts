@@ -4,6 +4,7 @@ import {
   ABSENT,
   CONFIG_FILE,
   ConfigError,
+  type Declared,
   MISSPELLED,
   settingsFrom,
 } from '../../packages/config/releasetools-config';
@@ -41,6 +42,24 @@ export interface GuardOptions extends ScanOptions {
  * nothing to check.
  */
 export function readSettings(root: string): Settings | null {
+  const declared = readDeclared(root);
+  if (declared === null) {
+    return null;
+  }
+  return {
+    projects: declared.projects as ProjectGroup[],
+    ...(declared.ignoreFiles === null ? {} : { ignoreFiles: declared.ignoreFiles }),
+    ...(declared.caseSensitive ? { caseSensitive: true } : {}),
+    except: declared.except,
+  };
+}
+
+/**
+ * Everything `.releasetools.yaml` at the repository root declares, checked.
+ *
+ * Null where the repository keeps no file, or an empty one.
+ */
+export function readDeclared(root: string): Declared | null {
   let text: string;
   try {
     text = fs.readFileSync(path.join(root, CONFIG_FILE), 'utf8');
@@ -63,19 +82,11 @@ export function readSettings(root: string): Settings | null {
 
   // One reader, shared with the release-notes plugin, so the two cannot
   // disagree about which project a change belongs to.
-  let declared;
   try {
-    declared = settingsFrom(text, CONFIG_FILE);
+    return settingsFrom(text, CONFIG_FILE);
   } catch (err) {
     throw err instanceof ConfigError ? new UsageError(err.message) : err;
   }
-
-  return {
-    projects: declared.projects as ProjectGroup[],
-    ...(declared.ignoreFiles === null ? {} : { ignoreFiles: declared.ignoreFiles }),
-    ...(declared.caseSensitive ? { caseSensitive: true } : {}),
-    except: declared.except,
-  };
 }
 
 function message(err: unknown): string {

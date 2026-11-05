@@ -7,6 +7,19 @@ first.
 
 ### Added
 
+`trigger-guard` fails a pull request when the publish workflow
+`.releasetools.yaml` names does not accept what `release.trigger` declares: a
+pushed tag needs `on.push.tags`, and a dispatch needs the `version` and
+`commit` inputs, with `commit` defaulting to `HEAD`.
+
+`@releasetools/config` answers where the previous release happened:
+`newestReleaseTag` is the newest version tag whose release commit a branch
+contains, reaching a tag on a built tree through its `Source-Commit` trailer,
+and `releaseCommitOf` is that commit for one tag. `versions-guard` asks it
+rather than carrying its own copy, so the guard and the release-notes plugin,
+which carries the same file, cannot disagree. Tags are ordered by git's version
+sort, so a pre-release counts as older than the release it names.
+
 `publish-tree` publishes a release started by dispatch in one step. It refuses
 a version with a `v`, a commit other than the one the run checked out, a
 manifest declaring another version, an existing tag, and a missing changelog
