@@ -1,0 +1,13 @@
+name: 'Trigger guard'
+description: >-
+  Fail a pull request when the publish workflow .releasetools.yaml names
+  does not accept what release.trigger declares: a pushed version tag, or
+  a dispatch carrying a version and a commit.
+author: 'releasetools'
+branding:
+  icon: 'zap'
+  color: 'blue'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
