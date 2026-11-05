@@ -20,6 +20,15 @@ rather than carrying its own copy, so the guard and the release-notes plugin,
 which carries the same file, cannot disagree. Tags are ordered by git's version
 sort, so a pre-release counts as older than the release it names.
 
+`publish-tree` publishes a release started by dispatch in one step. It refuses
+a version with a `v`, a commit other than the one the run checked out, a
+manifest declaring another version, an existing tag, and a missing changelog
+section, all before anything is written. Then it commits the built tree to
+`release/v<major>` with a `Source-Commit` trailer, tags it and the floating
+major, and creates the GitHub release from the changelog section. An existing
+tag is replaced only where the repository excepts `immutable-tag` and the
+dispatch asks for it.
+
 ## 0.10.0 - 2026-11-04
 
 ### Added
