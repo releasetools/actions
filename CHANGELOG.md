@@ -7,6 +7,11 @@ first.
 
 ### Added
 
+`trigger-guard` fails a pull request when the publish workflow
+`.releasetools.yaml` names does not accept what `release.trigger` declares: a
+pushed tag needs `on.push.tags`, and a dispatch needs the `version` and
+`commit` inputs, with `commit` defaulting to `HEAD`.
+
 `@releasetools/config` answers where the previous release happened:
 `newestReleaseTag` is the newest version tag whose release commit a branch
 contains, reaching a tag on a built tree through its `Source-Commit` trailer,

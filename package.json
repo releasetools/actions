@@ -13,14 +13,16 @@
     "build:versions-guard": "ncc build versions-guard/src/index.ts -o versions-guard/dist --license licenses.txt --minify",
     "build:changelog-guard": "ncc build changelog-guard/src/index.ts -o changelog-guard/dist --license licenses.txt --minify",
     "build:extract-release-notes": "ncc build extract-release-notes/src/index.ts -o extract-release-notes/dist --license licenses.txt --minify",
-    "build": "npm run build:signed-push && npm run build:versions-guard && npm run build:changelog-guard && npm run build:extract-release-notes",
+    "build:trigger-guard": "ncc build trigger-guard/src/index.ts -o trigger-guard/dist --license licenses.txt --minify",
+    "build": "npm run build:signed-push && npm run build:versions-guard && npm run build:changelog-guard && npm run build:extract-release-notes && npm run build:trigger-guard",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.0"
+    "@actions/github": "^6.0.0",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
