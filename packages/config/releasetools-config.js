@@ -442,6 +442,75 @@ function boolean(value, where) {
 
 
 /**
+ * Semantic versions, compared the way https://semver.org/spec/v2.0.0.html
+ * says: core numbers as integers, a release after every pre-release of
+ * itself, and pre-release identifiers one by one, numeric ones as numbers
+ * and the rest as text, so `rc.10` follows `rc.2` and `rc10` precedes `rc2`.
+ * The guards and the release-notes plugin order versions with this one
+ * comparator, so they cannot disagree about which release is newer.
+ */
+const SEMVER_PATTERN =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?$/;
+
+/** The version, or null when it is not one. A leading `v` is a tag's, and is dropped. */
+function parseVersion(version) {
+  const match = SEMVER_PATTERN.exec(String(version).trim().replace(/^v/, ''));
+  if (!match) {
+    return null;
+  }
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+    prerelease: match[4] === undefined ? [] : match[4].split('.'),
+  };
+}
+
+function compareIdentifiers(left, right) {
+  const leftNumeric = /^\d+$/.test(left);
+  const rightNumeric = /^\d+$/.test(right);
+  if (leftNumeric && rightNumeric) {
+    const one = Number(left);
+    const two = Number(right);
+    return one === two ? 0 : one < two ? -1 : 1;
+  }
+  if (leftNumeric !== rightNumeric) {
+    return leftNumeric ? -1 : 1;
+  }
+  return left === right ? 0 : left < right ? -1 : 1;
+}
+
+/**
+ * Negative when `left` is older, positive when newer, zero when the same
+ * version. Build metadata is ignored, as the specification says.
+ */
+function compareVersions(left, right) {
+  for (const [one, two] of [
+    [left.major, right.major],
+    [left.minor, right.minor],
+    [left.patch, right.patch],
+  ]) {
+    if (one !== two) {
+      return one < two ? -1 : 1;
+    }
+  }
+  if (left.prerelease.length === 0 || right.prerelease.length === 0) {
+    if (left.prerelease.length === right.prerelease.length) {
+      return 0;
+    }
+    return left.prerelease.length === 0 ? 1 : -1;
+  }
+  const shorter = Math.min(left.prerelease.length, right.prerelease.length);
+  for (let index = 0; index < shorter; index++) {
+    const order = compareIdentifiers(left.prerelease[index], right.prerelease[index]);
+    if (order !== 0) {
+      return order;
+    }
+  }
+  return left.prerelease.length - right.prerelease.length;
+}
+
+/**
  * Where a release happened, read from its version tag.
  *
  * FORMAT's "Versions and tags" rule 8 makes a release's release commit the
@@ -505,18 +574,19 @@ function releaseCommitOf(git, tag, head = 'HEAD') {
  * own name where `head` holds it), and the newer version tags passed over
  * because they lead back to nothing here. Where version tags exist and none
  * leads back, `tag` and `commit` are null. Null when there is no version tag
- * at all. Tags are ordered by git's version sort, with a pre-release before
- * the release it names.
+ * at all. Tags are ordered by compareVersions, so a pre-release precedes the
+ * release it names and `rc.10` follows `rc.2`.
  */
 function newestReleaseTag(git, head = 'HEAD') {
-  const listed = git(['-c', 'versionsort.suffix=-', 'tag', '--list', 'v*', '--sort=-v:refname']);
+  const listed = git(['tag', '--list', 'v*']);
   if (listed.status !== 0) {
     return null;
   }
   const tags = listed.stdout
     .split('\n')
     .map((line) => line.trim())
-    .filter((name) => VERSION_TAG.test(name));
+    .filter((name) => VERSION_TAG.test(name))
+    .sort((left, right) => compareVersions(parseVersion(right), parseVersion(left)));
   if (tags.length === 0) {
     return null;
   }
@@ -543,4 +613,6 @@ module.exports = {
   sourceCommitIn,
   releaseCommitOf,
   newestReleaseTag,
+  parseVersion,
+  compareVersions,
 };

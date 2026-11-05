@@ -264,6 +264,29 @@ describe('both guards, against a real repository', () => {
     expect(moved.moved).toEqual([`${path.basename(root)} 0.9.2 -> 0.9.3`]);
   });
 
+  it('after a pre-release, takes the next pre-release or the version it names, and nothing else', () => {
+    const single = [{ path: ['./'], manifest: ['package.json'] }];
+    write('package.json', `${JSON.stringify({ version: '1.0.0-rc1' })}\n`);
+    const released = commit('chore(release): 1.0.0-rc1');
+    git('tag', 'v1.0.0-rc1');
+
+    const judge = (type: string, version: string) => {
+      git('checkout', '-q', '-B', `try-${type}-${version}`, released);
+      write('src/thing.ts', `export const at = '${type} ${version}';\n`);
+      write('package.json', `${JSON.stringify({ version })}\n`);
+      commit(`${type}: a change`);
+      return guardVersions({ root, base: released, projects: single }).failures.map((f) => f.message);
+    };
+
+    expect(judge('fix', '1.0.0-rc2')).toEqual([]);
+    expect(judge('fix', '1.0.0')).toEqual([]);
+    expect(judge('feat', '1.0.0-rc2')).toEqual([]);
+    expect(judge('feat!', '1.0.0')).toEqual([]);
+    expect(judge('fix', '1.0.0-rc1').join('\n')).toMatch(/later pre-release of 1\.0\.0, or 1\.0\.0 itself/);
+    expect(judge('fix', '1.0.1').join('\n')).toMatch(/later pre-release of 1\.0\.0, or 1\.0\.0 itself/);
+    expect(judge('feat', '1.1.0').join('\n')).toMatch(/later pre-release of 1\.0\.0, or 1\.0\.0 itself/);
+  });
+
   it('never takes a floating major tag as a baseline', () => {
     const single = [{ path: ['./'], manifest: ['package.json'] }];
     write('package.json', `${JSON.stringify({ version: '1.3.5' })}\n`);

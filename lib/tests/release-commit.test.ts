@@ -4,7 +4,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  compareVersions,
   newestReleaseTag,
+  parseVersion,
   releaseCommitOf,
   sourceCommitIn,
 } from '../../packages/config/releasetools-config';
@@ -117,6 +119,18 @@ describe('newestReleaseTag', () => {
     expect(newestReleaseTag(repo.run)).toEqual({ tag: null, commit: null, skipped: ['v1.0.0'] });
   });
 
+  it('takes the newest pre-release by semantic version, not by name', () => {
+    const repo = repository();
+    repo.commit('first');
+    repo.git('tag', 'v1.0.0-rc.2');
+    repo.git('tag', 'v1.0.0-rc.10');
+    repo.git('tag', 'v1.0.0-rc2');
+    repo.git('tag', 'v1.0.0-rc10');
+    // rc.10 follows rc.2 (numeric identifiers); rc10 precedes rc2 (text), and
+    // both undotted ones follow the dotted ones ('rc2' > 'rc' after 'rc' matched).
+    expect(newestReleaseTag(repo.run)?.tag).toBe('v1.0.0-rc2');
+  });
+
   it('orders a pre-release before the release it names', () => {
     const repo = repository();
     repo.commit('candidate');
@@ -125,5 +139,17 @@ describe('newestReleaseTag', () => {
     repo.git('tag', 'v1.0.0');
     repo.commit('since');
     expect(newestReleaseTag(repo.run)?.tag).toBe('v1.0.0');
+  });
+});
+
+describe('compareVersions', () => {
+  const order = (left: string, right: string) => Math.sign(compareVersions(parseVersion(left)!, parseVersion(right)!));
+
+  it('puts a release after its pre-releases, and pre-releases in semver order', () => {
+    expect(order('1.0.0', '1.0.0-rc2')).toBe(1);
+    expect(order('1.0.0-rc2', '1.0.0-rc1')).toBe(1);
+    expect(order('1.0.0-rc.10', '1.0.0-rc.2')).toBe(1);
+    expect(order('1.0.0-rc10', '1.0.0-rc2')).toBe(-1);
+    expect(order('v1.0.0+build.5', '1.0.0')).toBe(0);
   });
 });
