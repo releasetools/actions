@@ -25,6 +25,27 @@ It reads the subset of YAML the format is written in: mappings, lists, scalars
 and flow lists of scalars. An anchor, a tag or a block scalar is refused by
 name and line rather than guessed at.
 
+## Where the last release happened
+
+```js
+const { spawnSync } = require('node:child_process');
+const { newestReleaseTag } = require('@releasetools/config');
+
+const git = (args) => spawnSync('git', args, { encoding: 'utf8' });
+newestReleaseTag(git);
+// { tag: 'v1.5.1', commit: 'ae79f36…', skipped: [] }
+```
+
+`newestReleaseTag` is the newest version tag whose release commit the branch
+contains, as the
+[conventions](https://github.com/releasetools/conventions/blob/main/FORMAT.md#versions-and-tags)
+define it: the tagged commit where the branch holds the tag, and otherwise the
+commit its `Source-Commit` trailer names, which is how a tag on a built tree on
+`release/v1` is traced back to `main`. `commit` is the tag's own name in the
+first case and a full SHA in the second. Newer tags that lead back to nothing
+on this branch are listed in `skipped`; where version tags exist and none leads
+back, `tag` is null. With no version tag at all it returns null.
+
 ## Adopt the conventions
 
 Run this from a Git working tree:

@@ -125,7 +125,7 @@ function baselineOf(
   manifests: readonly string[],
 ): Semver | null {
   if (project.path === '') {
-    const tag = newestReleaseTag(git, root, EXACT);
+    const tag = newestReleaseTag(git, root);
     const parsed = tag === null ? null : parse(tag);
     if (parsed !== null) {
       return parsed;
@@ -145,12 +145,6 @@ function baselineOf(
   }
   return null;
 }
-
-/**
- * The shape of a tag naming one release. A floating major such as `v0` moves
- * to whatever released last, so it is never what a release was.
- */
-const EXACT = 'v[0-9]*.[0-9]*.[0-9]*';
 
 /** The version every manifest a project holds agrees on. */
 function agreedVersion(

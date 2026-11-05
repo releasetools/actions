@@ -49,3 +49,21 @@ export class ConfigError extends Error {}
 export function parseYaml(text: string, where?: string): unknown;
 export function settingsFrom(text: string, where?: string): Declared;
 export function projectsFrom(value: unknown, where: string): ProjectGroup[];
+
+/** Runs one git command in the repository: its exit status and stdout. */
+export type RunGit = (args: string[]) => { status: number; stdout: string };
+
+/** The previous release: its tag, its release commit, and the newer tags passed over. */
+export interface PreviousRelease {
+  tag: string | null;
+  /** The tag's name where the branch holds the tag itself, otherwise the full SHA its trailer names. */
+  commit: string | null;
+  skipped: string[];
+}
+
+/** The full SHA a Source-Commit (or older Workflow-Commit) trailer names, or null. */
+export function sourceCommitIn(message: string): string | null;
+/** The commit a tag's release was cut from, where `head` contains it, or null. */
+export function releaseCommitOf(git: RunGit, tag: string, head?: string): string | null;
+/** The newest version tag whose release commit `head` contains; null with no version tag at all. */
+export function newestReleaseTag(git: RunGit, head?: string): PreviousRelease | null;

@@ -12,6 +12,14 @@ first.
 pushed tag needs `on.push.tags`, and a dispatch needs the `version` and
 `commit` inputs, with `commit` defaulting to `HEAD`.
 
+`@releasetools/config` answers where the previous release happened:
+`newestReleaseTag` is the newest version tag whose release commit a branch
+contains, reaching a tag on a built tree through its `Source-Commit` trailer,
+and `releaseCommitOf` is that commit for one tag. `versions-guard` asks it
+rather than carrying its own copy, so the guard and the release-notes plugin,
+which carries the same file, cannot disagree. Tags are ordered by git's version
+sort, so a pre-release counts as older than the release it names.
+
 ## 0.10.0 - 2026-11-04
 
 ### Added
