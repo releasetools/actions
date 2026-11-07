@@ -15,7 +15,8 @@
     "build:extract-release-notes": "ncc build extract-release-notes/src/index.ts -o extract-release-notes/dist --license licenses.txt --minify",
     "build:trigger-guard": "ncc build trigger-guard/src/index.ts -o trigger-guard/dist --license licenses.txt --minify",
     "build:publish-tree": "ncc build publish-tree/src/index.ts -o publish-tree/dist --license licenses.txt --minify",
-    "build": "npm run build:signed-push && npm run build:versions-guard && npm run build:changelog-guard && npm run build:extract-release-notes && npm run build:trigger-guard && npm run build:publish-tree",
+    "build:verify-signed-push": "ncc build verify-signed-push/src/index.ts -o verify-signed-push/dist --license licenses.txt --minify",
+    "build": "npm run build:signed-push && npm run build:versions-guard && npm run build:changelog-guard && npm run build:extract-release-notes && npm run build:trigger-guard && npm run build:publish-tree && npm run build:verify-signed-push",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit"

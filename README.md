@@ -178,6 +178,23 @@ the GitHub release from the changelog section.
 
 See the [`publish-tree` guide](publish-tree/).
 
+### `verify-signed-push`
+
+Checks a commit `signed-push` made into a mirror of another repository's
+directory: GitHub signed it for the publishing App, its `Source-Commit` trailer
+names a commit on the source's default branch, and its tree is that directory's
+tree. It makes four to six REST API requests and clones nothing.
+
+```yaml
+- uses: releasetools/actions/verify-signed-push@v0
+  with:
+    source-repository: my-org/mono
+    source-path: plugin
+    publisher: my-release-app[bot]
+```
+
+See the [`verify-signed-push` guide](verify-signed-push/).
+
 More actions are planned for common cross-workflow release patterns.
 
 ## Development

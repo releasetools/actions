@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
 import { context, getOctokit } from '@actions/github';
+import { parseRepository } from '../../lib/src/repository';
 import { enumerateSource } from './enumerate-source';
 import { enumerateTarget } from './enumerate-target';
 import { commit } from './commit';
@@ -19,12 +20,7 @@ export async function run(): Promise<void> {
     const forceTags = core.getBooleanInput('force-tags');
     const token = core.getInput('token', { required: true });
 
-    const slash = targetRepo.indexOf('/');
-    if (slash <= 0 || slash === targetRepo.length - 1) {
-      throw new Error(`target-repo must be "owner/repo", got "${targetRepo}"`);
-    }
-    const owner = targetRepo.slice(0, slash);
-    const repo = targetRepo.slice(slash + 1);
+    const { owner, repo } = parseRepository('target-repo', targetRepo);
 
     const workflowRepo = `${context.repo.owner}/${context.repo.repo}`;
     const body = appendWorkflowMetadata(customBody, {

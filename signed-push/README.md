@@ -126,6 +126,10 @@ synthetic merge commit. The PR head is available separately as
 `${{ github.event.pull_request.head.repo.full_name }}`. Use both when building a
 head-commit URL because the PR may come from a fork.
 
+A mirror of a source directory can be checked later with
+[`verify-signed-push`](../verify-signed-push/), which needs the body to carry
+`Source-Commit: <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}>`.
+
 ### `tags`, `tag`, and `force-tags`
 
 Use `tags` for one or more names:
