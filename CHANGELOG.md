@@ -5,6 +5,15 @@ first.
 
 ## 0.12.0 - 2026-11-05
 
+### Added
+
+`verify-signed-push` refuses a commit `signed-push` made unless GitHub signed
+it for the publishing App, its one `Source-Commit` trailer names a commit on the
+source repository's default branch, and its tree is exactly the source
+directory's tree. A `tag` input also requires a signed annotated tag on that
+commit. It reads GitHub's REST API only, so a mirror's workflow verifies what it
+holds without cloning the source.
+
 ### Changed
 
 After a pre-release, `versions-guard` takes a later pre-release of the same

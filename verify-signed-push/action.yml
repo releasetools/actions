@@ -1,0 +1,51 @@
+name: 'Verify signed push'
+description: >-
+  Refuse a commit signed-push made unless GitHub signed it for the publishing
+  App, its Source-Commit trailer names a commit on the source repository's
+  default branch, and its tree is exactly a directory of that commit. Reads
+  GitHub's REST API only; nothing is cloned or checked out.
+author: 'releasetools'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  source-repository:
+    description: '"owner/repo" the commit was published from. Its Source-Commit trailer must name this repository.'
+    required: true
+  source-path:
+    description: 'Directory of source-repository the commit holds, relative to its root. "." for the whole repository.'
+    required: true
+  publisher:
+    description: 'Login that must have authored the commit: the GitHub App behind the token signed-push used, such as "my-app[bot]".'
+    required: true
+  repository:
+    description: '"owner/repo" signed-push committed to.'
+    required: false
+    default: ${{ github.repository }}
+  commit:
+    description: 'The commit to verify in repository: a full SHA, or a branch or tag naming it.'
+    required: false
+    default: ${{ github.sha }}
+  source-commit:
+    description: 'The source commit the caller expects. It must equal the one the Source-Commit trailer names; it never stands in for it.'
+    required: false
+    default: ''
+  tag:
+    description: 'A tag of source-repository that must be annotated, carry a verified signature, and name the source commit.'
+    required: false
+    default: ''
+  token:
+    description: 'Token for the API requests. Reading public repositories needs no permissions on it. Empty sends the requests unauthenticated, which GitHub allows 60 times an hour.'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  commit-sha:
+    description: 'The verified commit in repository, as a full SHA.'
+  source-commit:
+    description: 'The source commit it holds a directory of.'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
