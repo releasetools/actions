@@ -3,7 +3,7 @@
 What changed in each release of the actions in this repository, newest
 first.
 
-## 0.12.0 - 2026-11-05
+## 0.12.0 - 2026-11-07
 
 ### Added
 
