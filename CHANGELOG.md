@@ -3,6 +3,20 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.12.0 - 2026-11-05
+
+### Changed
+
+After a pre-release, `versions-guard` takes a later pre-release of the same
+version or that version itself, whatever the changes were: after
+`1.0.0-rc1` come `1.0.0-rc2` and `1.0.0`. It used to add the increment to the
+pre-release, so it asked for `1.0.1` or `1.1.0`, refusing both of those and
+letting a release skip past `1.0.0`.
+
+`@releasetools/config` orders version tags by Semantic Versioning, with the
+comparator the guards use, so `rc.10` follows `rc.2` and `rc10` precedes
+`rc2`. Git's version sort, which it used before, put `rc10` after `rc2`.
+
 ## 0.11.0 - 2026-11-04
 
 ### Added

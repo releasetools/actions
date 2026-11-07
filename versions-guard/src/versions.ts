@@ -3,7 +3,7 @@ import type { ProjectGroup } from '../../lib/src/config';
 import { type Git, spawnGit } from '../../lib/src/git';
 import { type Project, UsageError, readInside, rootOf, scan, within } from '../../lib/src/scan';
 import type { GuardOptions } from '../../lib/src/settings';
-import { type Part, type Semver, compare, format, increment, parse } from '../../lib/src/semver';
+import { type Part, type Semver, compare, followsPrerelease, format, increment, parse } from '../../lib/src/semver';
 import { versionFrom } from '../../lib/src/version';
 
 export { UsageError };
@@ -69,6 +69,24 @@ export function guardVersions(options: GuardOptions): Result {
     const baseline = baselineOf(git, root, against, project, manifests);
     if (baseline === null) {
       moved.push(`${project.label} is new, at ${format(declared.version)}`);
+      continue;
+    }
+
+    // A pre-release is a step towards the version it names, so what follows it
+    // is the next step or that version, whatever the changes were.
+    if (baseline.prerelease.length > 0) {
+      const target = format({ ...baseline, prerelease: [] });
+      if (followsPrerelease(baseline, declared.version)) {
+        moved.push(`${project.label} ${format(baseline)} -> ${format(declared.version)}`);
+        continue;
+      }
+      failures.push({
+        project: project.label,
+        message:
+          `${project.label} is at ${format(declared.version)}, and after the pre-release ` +
+          `${format(baseline)} the next version is a later pre-release of ${target}, or ` +
+          `${target} itself.`,
+      });
       continue;
     }
 

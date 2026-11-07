@@ -7,100 +7,28 @@
  * the parts mean. Reading them approximately is how `0.2.0-rc1` comes out
  * equal to `0.2.0`, and a release candidate looks like the release.
  */
-export interface Semver {
-  major: number;
-  minor: number;
-  patch: number;
-  /** Dot-separated identifiers after the `-`, empty for a release. */
-  prerelease: readonly string[];
-}
-
-/** The pattern from the specification, without its build metadata capture. */
-const SEMVER =
-  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?$/;
+export type { Semver } from '../../packages/config/releasetools-config';
+import { compareVersions, parseVersion } from '../../packages/config/releasetools-config';
+import type { Semver } from '../../packages/config/releasetools-config';
 
 /** The version, or null when it is not one. A leading `v` is a tag's, and is dropped. */
-export function parse(version: string): Semver | null {
-  const match = SEMVER.exec(version.trim().replace(/^v/, ''));
-  if (!match) {
-    return null;
-  }
-  return {
-    major: Number(match[1]),
-    minor: Number(match[2]),
-    patch: Number(match[3]),
-    prerelease: match[4] === undefined ? [] : match[4].split('.'),
-  };
-}
+export const parse: (version: string) => Semver | null = parseVersion;
 
 /**
  * Negative when `left` is older, positive when newer, zero when the same
- * version. Build metadata is ignored, which is what the specification says:
- * two versions differing only after a `+` are the same version.
+ * version. Build metadata is ignored. Both live in @releasetools/config, so
+ * the guards and the release-notes plugin order versions the same way.
  */
-export function compare(left: Semver, right: Semver): number {
-  for (const [one, two] of [
-    [left.major, right.major],
-    [left.minor, right.minor],
-    [left.patch, right.patch],
-  ] as const) {
-    if (one !== two) {
-      return one < two ? -1 : 1;
-    }
-  }
+export const compare: (left: Semver, right: Semver) => number = compareVersions;
 
-  // A release outranks any pre-release of itself, and has none to compare.
-  if (left.prerelease.length === 0 || right.prerelease.length === 0) {
-    if (left.prerelease.length === right.prerelease.length) {
-      return 0;
-    }
-    return left.prerelease.length === 0 ? 1 : -1;
-  }
-
-  const shorter = Math.min(left.prerelease.length, right.prerelease.length);
-  for (let index = 0; index < shorter; index++) {
-    const order = compareIdentifiers(left.prerelease[index]!, right.prerelease[index]!);
-    if (order !== 0) {
-      return order;
-    }
-  }
-  // Everything matched, so the one with more identifiers is the larger.
-  return left.prerelease.length - right.prerelease.length;
-}
-
-/**
- * Numeric identifiers compare numerically, alphanumeric ones in ASCII order,
- * and a numeric identifier always has lower precedence than an alphanumeric
- * one. That is what puts `alpha.1` before `alpha.beta`.
- */
-function compareIdentifiers(left: string, right: string): number {
-  const leftNumeric = /^\d+$/.test(left);
-  const rightNumeric = /^\d+$/.test(right);
-
-  if (leftNumeric && rightNumeric) {
-    const one = Number(left);
-    const two = Number(right);
-    return one === two ? 0 : one < two ? -1 : 1;
-  }
-  if (leftNumeric !== rightNumeric) {
-    return leftNumeric ? -1 : 1;
-  }
-  return left === right ? 0 : left < right ? -1 : 1;
-}
-
-/**
- * Which part of a version a change moves.
- *
- * The major is not one of them. Nothing derives it from what changed, so this
- * type cannot spell what no rule may ask for.
- */
 export type Part = 'minor' | 'patch';
 
 /**
  * The version that follows `from` by incrementing `part`.
  *
- * A pre-release is dropped, since `1.2.3-rc.1` incremented by a patch is
- * `1.2.4`, not another candidate.
+ * A pre-release is dropped. Nothing increments a pre-release baseline:
+ * what follows `1.2.3-rc.1` is a later candidate for 1.2.3 or 1.2.3 itself,
+ * which `followsPrerelease` decides.
  */
 export function increment(from: Semver, part: Part): Semver {
   const next = (major: number, minor: number, patch: number): Semver => ({
@@ -114,6 +42,21 @@ export function increment(from: Semver, part: Part): Semver {
     return next(from.major, from.minor + 1, 0);
   }
   return next(from.major, from.minor, from.patch + 1);
+}
+
+/**
+ * Whether `version` may follow the pre-release `baseline`: a later
+ * pre-release of the same version, or that version itself. After
+ * `1.0.0-rc.1` comes `1.0.0-rc.2` or `1.0.0`, whatever the changes in
+ * between were, since they are all on the way to 1.0.0.
+ */
+export function followsPrerelease(baseline: Semver, version: Semver): boolean {
+  return (
+    version.major === baseline.major &&
+    version.minor === baseline.minor &&
+    version.patch === baseline.patch &&
+    compare(version, baseline) > 0
+  );
 }
 
 /** The version as it is written. */

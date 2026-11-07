@@ -3,6 +3,19 @@
 Newest first. Each version here is one npm published: `0.2.0` was written and
 never dispatched, so what it described shipped in `0.3.0`.
 
+## 0.8.0 - 2026-11-05
+
+### Added
+
+`parseVersion` and `compareVersions` read and order semantic versions as the
+specification says. The guards in releasetools/actions use them too.
+
+### Changed
+
+`newestReleaseTag` orders tags with `compareVersions` rather than git's version
+sort, so `v1.0.0-rc10` precedes `v1.0.0-rc2` and `v1.0.0-rc.10` follows
+`v1.0.0-rc.2`, as Semantic Versioning orders them.
+
 ## 0.7.0 - 2026-11-04
 
 ### Added

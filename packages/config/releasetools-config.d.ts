@@ -50,6 +50,20 @@ export function parseYaml(text: string, where?: string): unknown;
 export function settingsFrom(text: string, where?: string): Declared;
 export function projectsFrom(value: unknown, where: string): ProjectGroup[];
 
+/** A semantic version. */
+export interface Semver {
+  major: number;
+  minor: number;
+  patch: number;
+  /** Dot-separated identifiers after the `-`, empty for a release. */
+  prerelease: readonly string[];
+}
+
+/** The version, or null when it is not one. A leading `v` is dropped. */
+export function parseVersion(version: string): Semver | null;
+/** Negative when `left` is older, positive when newer, zero when the same version. */
+export function compareVersions(left: Semver, right: Semver): number;
+
 /** Runs one git command in the repository: its exit status and stdout. */
 export type RunGit = (args: string[]) => { status: number; stdout: string };
 
