@@ -3,6 +3,15 @@
 What changed in each release of the actions in this repository, newest
 first.
 
+## 0.12.1 - 2026-11-08
+
+### Fixed
+
+`signed-push` leaves `Workflow-Commit` out of its footer when the body's
+`Source-Commit` names the same commit, so a mirror published from the commit
+its workflow runs on names that commit once. A `Source-Commit` naming another
+commit keeps both. It used to write both, naming the same commit twice.
+
 ## 0.12.0 - 2026-11-07
 
 ### Added

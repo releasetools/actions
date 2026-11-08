@@ -36,6 +36,41 @@ describe('appendWorkflowMetadata', () => {
     );
   });
 
+  it('leaves out Workflow-Commit when Source-Commit names the same commit', () => {
+    const body = [
+      'Changes: <https://github.com/releasetools/actions/compare/v0.0.4...v0.0.5>',
+      'Source-Commit: <https://github.com/releasetools/actions/commit/abc1234>',
+    ].join('\n');
+
+    expect(appendWorkflowMetadata(body, metadata)).toBe(
+      [
+        body,
+        '',
+        '---',
+        '',
+        'Published-By: <https://github.com/releasetools/actions/actions/runs/123456>',
+      ].join('\n'),
+    );
+  });
+
+  it.each([
+    ['another commit', 'https://github.com/releasetools/actions/commit/def5678'],
+    ['another repository', 'https://github.com/releasetools/cli/commit/abc1234'],
+  ])('keeps Workflow-Commit when Source-Commit names %s', (_, url) => {
+    const body = `Source-Commit: <${url}>`;
+
+    expect(appendWorkflowMetadata(body, metadata)).toBe(
+      [
+        body,
+        '',
+        '---',
+        '',
+        'Workflow-Commit: <https://github.com/releasetools/actions/commit/abc1234>',
+        'Published-By: <https://github.com/releasetools/actions/actions/runs/123456>',
+      ].join('\n'),
+    );
+  });
+
   it('always appends inferred metadata after custom body content', () => {
     const body = [
       'Workflow-Commit: <https://example.test/custom-commit>',
