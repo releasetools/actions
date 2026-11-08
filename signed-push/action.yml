@@ -25,7 +25,7 @@ inputs:
     description: 'Commit message headline (the first line).'
     required: true
   body:
-    description: 'Optional custom commit message body. Workflow-Commit and Published-By references are always appended automatically.'
+    description: 'Optional custom commit message body. A Published-By reference is appended, and a Workflow-Commit reference unless the body has a Source-Commit naming the same commit.'
     required: false
     default: ''
   prune:
