@@ -101,8 +101,8 @@ it means "delete every file from the target branch."
 
 ### `body` and generated metadata
 
-The action always identifies the workflow revision and run that produced its
-commit:
+The action appends a footer naming the workflow revision and run that produced
+its commit:
 
 ```text
 Workflow-Commit: <https://github.com/my-org/source-repo/commit/abc1234>
@@ -129,6 +129,18 @@ head-commit URL because the PR may come from a fork.
 A mirror of a source directory can be checked later with
 [`verify-signed-push`](../verify-signed-push/), which needs the body to carry
 `Source-Commit: <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}>`.
+That names the commit the workflow ran on, so the footer leaves out
+`Workflow-Commit`:
+
+```text
+Source-Commit: <https://github.com/my-org/source-repo/commit/abc1234>
+
+---
+
+Published-By: <https://github.com/my-org/source-repo/actions/runs/123456>
+```
+
+A `Source-Commit` naming any other commit keeps both.
 
 ### `tags`, `tag`, and `force-tags`
 
