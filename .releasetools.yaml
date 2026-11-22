@@ -14,3 +14,8 @@ release:
   checks: ci.yml
   publish: release.yml
   trigger: dispatch
+
+# The publish workflow creates the version tag on a built commit.
+conventions:
+  except:
+    - tag-version-to-release
